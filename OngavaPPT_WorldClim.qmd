@@ -1,0 +1,566 @@
+---
+title: "Ongava Climate Analysis"
+author: "Heather Throop"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Set Up
+
+```{r}
+# Load necessary packages
+library(terra)
+library(here)
+library(tidyverse)
+library(curl)
+
+# Define the coordinates for Ongava Research Centre
+lat <- -19.35472
+lon <- 15.90289
+
+```
+
+### Create Function: Monthly PPT (as percentage of annual total)
+
+```{r}
+# Calculate for each month the percentage of the total PPT for that year that fell in that month
+
+# Function to calculate the percentage of monthly precipitation out of the annual total
+calculate_pct_annual_PPT <- function(precip_data) {
+  # Group data by year and calculate the annual total precipitation
+  annual_totals <- precip_data |>
+    group_by(Year) |>
+    summarise(Annual_PPT = sum(Precipitation, na.rm = TRUE))
+  
+  # Join the annual totals back to the original data
+  precip_data <- precip_data |>
+    left_join(annual_totals, by = "Year")
+  
+  # Calculate the percentage of each month's precipitation out of the annual total
+  precip_data <- precip_data |>
+    mutate(pct_annual_PPT = (Precipitation / Annual_PPT) * 100)
+  
+  return(precip_data)
+}
+```
+
+## 2010-2019 WorldClim Monthly PPT Data
+
+It should be possible to pull data from UC Davis site but I have not been successful with this (looks like a web issue rather than coding issue). Here instead I download the geotiffs for 2010-2019 only.
+
+```{r}
+
+# Define the time range (this could be for a longer time, but only downloaded the 2010-2019 files while at Ongava due to slow connectivtity - had to download for whole world dut to server access issues)
+start_year <- 2010
+end_year <- 2019
+
+# Path to the directory where the downloaded .tif files are stored
+data_dir <- here("wc2.1_cruts4.06_2.5m_prec_2010-2019")
+
+# Function to extract WorldClim2.1 data from local files
+get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
+  # Create an empty data frame to store the results
+  precip_data <- data.frame(Year = integer(), 
+                            Month = integer(), 
+                            Precipitation = numeric())
+  
+  # Convert coordinates to matrix
+  coordinates <- matrix(c(lon, lat), ncol = 2)
+  
+  # Loop through each year and month and process the corresponding data
+  for (year in start_year:end_year) {
+    for (month in 1:12) {
+      # Construct the file path for the specific year and month
+      file_path <- file.path(data_dir, sprintf("wc2.1_2.5m_prec_%d-%02d.tif", year, month))
+      
+      # Debugging step: print the file path being checked
+      cat("Checking file:", file_path, "\n")
+      
+      # Check if the file exists before attempting to load it
+      if (file.exists(file_path)) {
+        cat("File exists: ", file_path, "\n")
+        
+        # Load the raster file using terra
+        raster_data <- rast(file_path)
+        
+        # Extract the precipitation data for the location
+        precip_value <- terra::extract(raster_data, coordinates)
+        
+        # Check if precip_value has the expected structure and contents
+        if (!is.null(precip_value) && nrow(precip_value) > 0) {
+          precip_value <- precip_value[1, 1]  # Extract the value from the first row and first column
+          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = precip_value))
+        } else {
+          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
+        }
+        
+      } else {
+        warning(paste("File not found:", file_path))
+        # Append NA for missing file
+        precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
+      }
+    }
+  }
+  
+  return(precip_data)
+}
+
+# Get WorldClim2.1 data for the specified location and date range
+precip_data_2010.2019 <- get_WorldClim2_data(lat, lon, start_year, end_year, data_dir)
+
+# Display the summary of the data
+print(summary(precip_data_2010.2019))
+
+# Save the precip_data dataframe as a CSV file
+write.csv(precip_data_2010.2019, file = here("output", "precip_data_2010.2019.csv"), 
+          row.names = FALSE)
+
+```
+
+### PPT Summaries
+
+```{r}
+
+# For the WorldClim data at Ongava, calculate for each month the percentage of the total PPT for that year that fell in that month
+
+# Apply the function created above to do this
+precip_data_2010.2019 <- calculate_pct_annual_PPT(precip_data_2010.2019)
+
+```
+
+```{r}
+# Summarize mean monthly PPT for WorldClim data   
+monthly_precip_2010.2019 <- precip_data_2010.2019 |>
+    group_by(Month) |>
+    summarise(mean_monthly_PPT = mean(Precipitation, na.rm = TRUE),
+              N = n(),
+              sd_monthly_PPT = sd(Precipitation),
+              se_monthly_PPT = sd_monthly_PPT / sqrt(N))
+ 
+```
+
+```{r}
+# plot monthly PPT patterns from WorldClim2.1 data
+monthly_rainfall_plot <- ggplot(monthly_precip_2010.2019, aes(x = Month)) +
+  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT, 
+                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 0.2) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "Month", y = "Precipitation (mm)", 
+       title = "Ongava WorldClim2.1, 2009-2019") +
+  theme_classic() 
+monthly_rainfall_plot
+
+ggsave(filename = here("figs", "2009-2019monthly_rainfall_plot.jpg"),
+       plot = monthly_rainfall_plot,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+```
+
+#### Rain year summary
+
+```{r}
+# Add the rain_year column to precip_data
+precip_data_2010.2019 <- precip_data_2010.2019 |>
+  mutate(rain_year = ifelse(Month >= 9 & Month <= 12, 
+                            paste0(Year, "-", Year + 1),
+                            paste0(Year - 1, "-", Year)))
+
+# Apply the function to calculate monthly percent of total yearly rainfall the precip_data dataframe
+precip_data_2010.2019 <- calculate_pct_annual_rainyr_PPT(precip_data_2010.2019)
+```
+
+#### Comparison with Ongava rain guage data
+
+Import Ongava data from Dropbox\
+Note that these data are from Stuart Crawford via Rolf Becker. Stuart's email suggests that more data may be available from the Davis Weatherlink app. I didn't find any publicly available data from the app, but can look into this.
+
+```{r}
+# Import Ongave rainguage data using the corrected Dropbox URL for direct download
+url <- "https://www.dropbox.com/scl/fi/8r6u8lwu2llrow02wmtxq/OngavaRainData.csv?rlkey=0jycso3d15qudsoazzogwmcsg&dl=1"
+
+# Read the CSV file from the corrected URL
+Ongava_rainfall <- read.csv(url)
+
+# Join the annual totals back to the original data
+precip_data_2010.2019 <- precip_data_2010.2019 |>
+    left_join(Ongava_rainfall, by = "rain_year")
+```
+
+```{r}
+# Plot Ongava measured versus WorldClim rain_year data
+precip_data_2010.2019$rain_year <- 
+  factor(precip_data_2010.2019$rain_year, levels = unique(precip_data_2010.2019$rain_year))
+
+# Remove monthly data
+annual_rainfall_2010.2019 <- precip_data_2010.2019 |>
+    filter(Month == 1) |>
+    filter(rain_year != "2009-2010") |> # remove 2009-2010 since no 2009 data
+    filter(rain_year != "2019-2020") |> # remove 2019-2020 since no 2020 data
+    select(rain_year, Annual_rainyr_PPT, OngavaMeasuredPPT)
+
+# calculate mean rain_year PPT for both data sources
+mean_WC_rainyr_ppt2010.2019 <- mean(
+  annual_rainfall_2010.2019$Annual_rainyr_PPT, na.rm = TRUE)
+mean_Ong_rainyr_ppt2010.2019 <- mean(
+  annual_rainfall_2010.2019$OngavaMeasuredPPT, na.rm = TRUE)
+
+# plot the rainfall over time
+rainfall_comparison <- ggplot(annual_rainfall_2010.2019, aes(x = rain_year)) +
+  geom_line(aes(y = Annual_rainyr_PPT, group = 1, 
+                color = "WorldClim2.1", linetype = "WorldClim2.1"), 
+            linewidth = 1) +
+  geom_line(aes(y = OngavaMeasuredPPT, group = 1, 
+                color = "Ongava rain gauge", linetype = "Ongava rain gauge"),
+            linewidth = 1) +
+  scale_color_manual(name = "Legend", values = c("WorldClim2.1" = "black", 
+            "Ongava rain gauge" = "red")) +
+  scale_linetype_manual(name = "Legend", values = c("WorldClim2.1" = "solid",              "Ongava rain gauge" = "dashed")) +
+  geom_hline(yintercept = mean_Ong_rainyr_ppt2010.2019, color = "red", 
+             linetype = "dotted", size = 1) + # line for mean rainfall PPT 
+  geom_hline(yintercept = mean_WC_rainyr_ppt2010.2019, color = "black", 
+             linetype = "dotted", size = 1) + # line for mean rainfall PPT 
+  labs(x = "Rain Year", y = "Precipitation (mm)", 
+       title = "") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top")
+rainfall_comparison
+
+ggsave(filename = here("figs", "Ongava_vs_WorldCLim_annualPPT.jpg"),
+       plot = rainfall_comparison,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+```
+
+## 1960-2021 WorldClim Data
+
+It should be possible to pull data from UC Davis site but I have not been successful with this (looks like a web issue rather than coding issue). The alternative is to download the ENTIRE dataset (16 GB). I did this but extracted the monthly precip data from the geotiffs and deleted the geotiffs.
+
+DO NOT RUN THIS CHUNK – PULLS DATA FROM GEOTIFFS (NOW DELETED)
+
+If needed, these can be redownloaded from <https://worldclim.org/data/monthlywth.html> and placed in the (empty) folder referenced in this chunk.
+
+```{r}
+#### DO NOT RUN THIS CHUNK - USES DELETED WORLDCLIM DATA
+# Define the time range
+start_year <- 1960
+end_year <- 2021
+
+# Path to the directory where the downloaded .tif files are stored
+data_dir <- here("wc2.1_cruts4.06_2.5m_prec_1960-2021")
+
+# Function to extract WorldClim2.1 data from local files
+get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
+  # Create an empty data frame to store the results
+  precip_data <- data.frame(Year = integer(), 
+                            Month = integer(), 
+                            Precipitation = numeric())
+  
+  # Convert coordinates to a matrix
+  coordinates <- matrix(c(lon, lat), ncol = 2)
+  
+  # Loop through each year and month and process the corresponding data
+  for (year in start_year:end_year) {
+    for (month in 1:12) {
+      # Construct the file path for the specific year and month
+      file_path <- file.path(data_dir, sprintf("wc2.1_2.5m_prec_%d-%02d.tif", year, month))
+      
+      # Check if the file exists before attempting to load it
+      if (file.exists(file_path)) {
+        # Load the raster file using terra
+        raster_data <- rast(file_path)
+        
+        # Ensure the raster has the correct CRS (WGS84)
+        crs(raster_data) <- "EPSG:4326"  # WGS84
+        
+        # Extract the precipitation data for the location
+        precip_value <- terra::extract(raster_data, coordinates)
+        
+        # Check if precip_value has the expected structure and contents
+        if (!is.null(precip_value) && nrow(precip_value) > 0) {
+          precip_value <- precip_value[1, 1]  # Extract the value from the first row and first column
+          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = precip_value))
+        } else {
+          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
+        }
+      } else {
+        warning(paste("File not found:", file_path))
+        # Append NA for missing file
+        precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
+      }
+    }
+  }
+  
+  return(precip_data)
+}
+
+# Get WorldClim2.1 data for the specified location and date range
+precip_data_1960.2021 <- get_WorldClim2_data(latitude, longitude, start_year, end_year, data_dir)
+
+# Display the summary of the data
+print(summary(precip_data_1960.2021))
+
+# Save the precip_data dataframe as a CSV file
+# Commented out just in case this chunk run accidentally
+# write.csv(precip_data_1960.2021, file = here(
+#  "output", "precip_data_1960.2021.csv"), row.names = FALSE))
+ 
+```
+
+### PPT Summaries
+
+The following chunks use saved data - ok to run!
+
+```{r}
+
+# Pull in the saved data extracted from WorldClim (in last chunk)
+precip_data_1960.2021 <- read_csv("precip_data_1960.2021.csv")
+
+# Add the rain_year column to precip_data
+precip_data_1960.2021 <- precip_data_1960.2021 |>
+  mutate(rain_year = ifelse(Month >= 9 & Month <= 12, 
+                            paste0(Year, "-", Year + 1),
+                            paste0(Year - 1, "-", Year)))
+
+# For the WorldClim data at Ongava, calculate for each month the percentage of the total PPT for that year that fell in that month. Use the function from above.
+# Apply the function to the precip_data dataframe
+precip_data_1960.2021 <- calculate_pct_annual_PPT(precip_data_1960.2021)
+
+
+```
+
+```{r}
+# Summarize mean monthly PPT for WorldClim data   
+monthly_precip_1960.2021 <- precip_data_1960.2021 |>
+    group_by(Month) |>
+    summarise(mean_monthly_PPT = mean(Precipitation, na.rm = TRUE),
+              N = n(),
+              sd_monthly_PPT = sd(Precipitation),
+              se_monthly_PPT = sd_monthly_PPT / sqrt(N))
+ 
+```
+
+```{r}
+# plot monthly PPT patterns from WorldClim2.1 data
+monthly_rainfall_plot_1960.2021 <- ggplot(
+    monthly_precip_1960.2021, aes(x = Month)) +
+  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT, 
+                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 0.2) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "Month", y = "Precipitation (mm)", 
+       title = "Ongava WorldClim2.1, 1960-2021") +
+  theme_classic() 
+monthly_rainfall_plot_1960.2021
+
+ggsave(filename = here("figs", "1960-2021monthly_rainfall_plot.jpg"),
+       plot = monthly_rainfall_plot_1960.2021,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+```
+
+### Rain year summary
+
+```{r}
+# Add the rain_year column to precip_data
+precip_data_1960.2021 <- precip_data_1960.2021 |>
+  mutate(rain_year = ifelse(Month >= 9 & Month <= 12, 
+                            paste0(Year, "-", Year + 1),
+                            paste0(Year - 1, "-", Year)))
+
+# Function to calculate the percentage of monthly precipitation out of the annual total
+calculate_pct_annual_rainyr_PPT_1960.2021 <- function(precip_data_1960.2021) {
+  # Group data by rain_year and calculate the annual total precipitation
+  annual_totals_1960.2021 <- precip_data_1960.2021 |>
+    group_by(rain_year) |>
+    summarise(Annual_rainyr_PPT = sum(Precipitation, na.rm = TRUE))
+  
+  # Join the annual totals back to the original data
+  precip_data_1960.2021 <- precip_data_1960.2021 |>
+    left_join(annual_totals_1960.2021, by = "rain_year")
+  
+  # Calculate the percentage of each month's precipitation out of the annual total
+  precip_data_1960.2021 <- precip_data_1960.2021 |>
+    mutate(pct_rainyr_PPT = (Precipitation / Annual_rainyr_PPT) * 100)
+  
+  return(precip_data_1960.2021)
+}
+
+# Apply the function to the precip_data dataframe
+precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT_1960.2021(precip_data_1960.2021)
+```
+
+```{r}
+# Plot WorldClim rain_year data
+precip_data_1960.2021$rain_year <- 
+  factor(precip_data_1960.2021$rain_year, 
+         levels = unique(precip_data_1960.2021$rain_year))
+
+# Remove monthly data
+annual_rainfall_1960.2021 <- precip_data_1960.2021 |>
+    filter(Month == 1) |>
+    select(rain_year, Annual_rainyr_PPT)
+
+# calculate mean rain_year PPT for the duration of the dataset
+mean_rainyr_ppt <- mean(annual_rainfall_1960.2021$Annual_rainyr_PPT, 
+                        na.rm = TRUE)
+
+# make the plot
+rainfall_1960.2021 <- ggplot(annual_rainfall_1960.2021, 
+        aes(x = rain_year, y = Annual_rainyr_PPT, group = 1)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Rain Year", y = "Precipitation (mm)", 
+       title = "WorldClim2.1: Ongava Research Centre") +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = mean_rainyr_ppt, color = "red", 
+             linetype = "dashed", size = 1) + # line for mean rainfall PPT 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top") +
+   scale_x_discrete(breaks = levels
+                    (annual_rainfall_1960.2021$rain_year)[seq(1, length(levels(annual_rainfall_1960.2021$rain_year)), by = 5)]) 
+rainfall_1960.2021
+
+ggsave(filename = here("figs", "1960.2021rainyear_PPT_plot.jpg"),
+       plot = rainfall_1960.2021,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+```
+
+### Rainyear histogram
+
+```{r}
+rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Annual_rainyr_PPT)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "black") +
+  labs(x = "Annual Rain Year Precipitation (mm)", y = "Count of Rain Years", 
+       title = "Distribution of Rain Years by Annual Precipitation") +
+  theme_classic()
+
+rainfall_histogram
+```
+
+## PPT addition calculations
+
+### Monthly PPT Distribution
+
+```{r}
+# Comparison of recent (2010-2019) and longer-term (1960-2021) WorldClim data on monthly rainfall. This is to assess if there is an apparent change in distribution.
+
+# summarize monthly PPT means for 2010-2019 WorldClim
+monthly_precip_2010.2019 <- precip_data_2010.2019 |>
+    group_by(Month) |>
+    summarise(n = n(),
+              mean_monthly_PPT = mean(Precipitation),
+              sd_monthly_PPT = sd(Precipitation),
+              se_monthly_PPT = sd_monthly_PPT/sqrt(n),
+              mean_pct_annual_PPT = mean(pct_annual_PPT))
+
+# summarize monthly PPT means for 1960-2021 WorldClim data 
+monthly_precip_1960.2021 <- precip_data_1960.2021 |>
+    group_by(Month) |>
+    summarise(n = n(),
+              mean_monthly_PPT = mean(Precipitation),
+              sd_monthly_PPT = sd(Precipitation),
+              se_monthly_PPT = sd_monthly_PPT/sqrt(n),
+              mean_pct_annual_PPT = mean(pct_annual_PPT))
+
+# Now compare these two time periods visually
+# Add a column to each dataset indicating the time period
+monthly_precip_2010.2019 <- monthly_precip_2010.2019 |>
+  mutate(Period = "2010-2019")
+
+monthly_precip_1960.2021 <- monthly_precip_1960.2021 |>
+  mutate(Period = "1960-2021")
+
+# Combine the two datasets into one
+combined_WC_precip <- bind_rows(monthly_precip_2010.2019, monthly_precip_1960.2021)
+
+# Plot the comparison
+comparison_plot <- ggplot(combined_WC_precip, aes(x = Month, y = mean_monthly_PPT, color = Period, group = Period)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(x = "Month", y = "Mean Monthly Precipitation (mm)", 
+       title = "Comparison of Mean Monthly Precipitation (2010-2019 vs 1960-2021)",
+       color = "Period") +
+  theme_minimal() +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +  # Convert month numbers to abbreviated month names
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+comparison_plot
+# There is not much difference in the distribution for the two time periods. I will use the 1960-2021 time period.
+
+```
+
+```{r}
+# Explore patterns of extreme rainfall years through time
+
+# Calculate percentiles for "normal rainfall" (0.45 and 0.55 percentiles), "extreme low rainfall (0.10 percentile), and "extremely high rainfall" (0.90) percentile. These definitons are based on Knapp et al. 2015
+percentiles <- quantile(annual_rainfall_1960.2021$Annual_rainyr_PPT, probs = c(0.10, 0.45, 0.55, 0.90), na.rm = TRUE)
+
+# Create a plot with horizontal lines for the mean and percentiles
+rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021, 
+      aes(x = rain_year, y = Annual_rainyr_PPT, group = 1)) +
+  geom_line(linewidth = 1) +
+  # Add the mean line
+  geom_hline(yintercept = mean(
+    annual_rainfall_1960.2021$Annual_rainyr_PPT, na.rm = TRUE), 
+             color = "red", linetype = "dashed", size = 1) +
+  # Add the percentile lines
+  geom_hline(yintercept = percentiles[1], color = "blue", 
+             linetype = "dotted", size = 1) + # 10th percentile
+  geom_hline(yintercept = percentiles[2], color = "darkgreen", 
+             linetype = "dotted", size = 1) + # 45th percentile
+  geom_hline(yintercept = percentiles[3], color = "darkgreen", 
+             linetype = "dotted", size = 1) + # 55th percentile
+  geom_hline(yintercept = percentiles[4], color = "blue", 
+             linetype = "dotted", size = 1) + # 90th percentile
+  labs(x = "Rain Year", y = "Precipitation (mm)", 
+       title = "1960-2021 WorldClim2.1 w average and extreme rainfall") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top") +
+  scale_x_discrete(breaks = levels(
+    annual_rainfall_1960.2021$rain_year)[seq(1, length(
+      levels(annual_rainfall_1960.2021$rain_year)), by = 5)]) 
+rainfall_extremes_1960.2021
+
+ggsave(filename = here("figs", "1960.2021rainfall_extremes.jpg"),
+       plot = rainfall_1960.2021,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+
+```
+
+Rainfall additions
+
+```{r}
+# calculate monthly PPT addition (mm) if we add the mean rainfall on top of ambient rainfall
+
+# calculate area of the plot and save as a variable
+plotarea <- 3.14159*0.5^2
+# a 1 mm PPT event is equivalent to application of 0.785 L added to each plot
+
+# calculate monthly PPT addition (L) and their distribution for each plot
+# These calculations are based on mean monthly PPT (assuming adding the eqivalent of monthly rainfall).
+# PPT_events_per_month is the number of times that rainfall is added, which is 4 by default (for weekly rainfall) but 1 if less than 10 L are added per month. L_per_event is the amount that should be added to each plot for each rainfall event.
+monthly_PPT_additions <- monthly_precip_1960.2021 |>
+    mutate(monthlyPPTadd_L_per_plot = mean_monthly_PPT * plotarea,
+          PPT_events_per_month = ifelse(near(monthlyPPTadd_L_per_plot, 0), 0,
+                                ifelse(monthlyPPTadd_L_per_plot < 10, 1, 4)),
+          L_per_event = ifelse(near(monthlyPPTadd_L_per_plot, 0), 0, 
+                        monthlyPPTadd_L_per_plot / PPT_events_per_month)
+          ) |>
+    select(Month,mean_monthly_PPT,monthlyPPTadd_L_per_plot,
+           PPT_events_per_month,L_per_event)
+
+write.csv(monthly_PPT_additions, file = here(
+  "output", "monthly_PPT_additions.csv"), row.names = FALSE)
+
+
+
+
+```
