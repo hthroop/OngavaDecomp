@@ -1,0 +1,253 @@
+---
+title: "2024_LPI_Test_Analyses"
+author: "Heather Throop"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## ReadMe
+
+Heather Throop: This is some preliminary analysis by of the 2004-06-05 field data collected by Isabel Torres and Thomas Ingalls at DBG. I am not sure of the data collection protocols, so all analyses should be taken with some copious grains of salt!
+
+## SetUp
+
+```{r}
+# load packages
+library(here)
+library(tidyverse)
+library(stringr)
+```
+
+## Load and Merge Data
+
+```{r}
+#|label: load-L1-dataframes
+# Data are currently stored as individual files for each field collection date in a L1 file for each date in the DeAD Dropbox folder
+
+### Code update possibility: separate datafiles can be pulled in with a more automated process.
+
+# load data from 2024-06-05
+BeltTran_df <- read.csv("https://www.dropbox.com/scl/fi/b01um3zui9bo4h7ledotq/240605_BeltTran.csv?rlkey=kjtv84lznakci4bd8hv4t7xp8&dl=1")
+BasalIntercept_df <- read.csv("https://www.dropbox.com/scl/fi/p4e620d0idm03xw0zk9x3/240605_BasalIntercept.csv?rlkey=guoqzg4xq4el1x8u4c7wpinki&dl=1")
+Gap_20240605 <- read.csv("https://www.dropbox.com/scl/fi/ae40wm7g1fxde11mcu6pr/240605_Gap.csv?rlkey=5ooys8juko7lat0tz1uscrafs&dl=1")
+LPI_20240605 <- read.csv("https://www.dropbox.com/scl/fi/291htbz43yxvqtrty7txj/240605_LPI.csv?rlkey=hbrf6uz3qufd0f39daffmbnlp&dl=1")
+
+# load data from 2024-05-30
+# Note that belt transect data for this date included counts of shrubs only (no size measurements). 
+LPI_20240530 <- read.csv("https://www.dropbox.com/scl/fi/dbzres2kapae2iuc3ut3b/240530_LPI.csv?rlkey=u0w2bbsepr2x83t14bxl1mjif&dl=1")
+Gap_20240530 <- read.csv("https://www.dropbox.com/scl/fi/69hubcwhwg5v70025vu0b/240530_Gap.csv?rlkey=39nbs4hpy5oy9fdy9wityfk5h&dl=1")
+```
+
+```{r}
+#|label: merge-L1-dataframes-to-L2
+
+# I am considering dataframes for individual sites the L1 data and the merged files as L2 dataframes.
+
+# combine the LPI data 
+LPI_L2 <- bind_rows(LPI_20240530, LPI_20240605)
+# There are some issues with trailing white spaces in the SoilSurface column. Remove them. 
+LPI_L2$SoilSurface <- str_trim(LPI_L2$SoilSurface)
+
+# combine the Gap dataframes
+Gap_L2 <- bind_rows(Gap_20240530, Gap_20240605)
+
+# no other dataframes merged by date now since there were not additional dates for some of the data types
+```
+
+## LPI
+
+Note: it will be good to replace the field codes with more descriptive variable names, at least for the figures. I got confused on the exact meaning of some of the codes, so I haven't tried to add anything here.
+
+### TopLayer
+
+TopLayer is the top canopy hit in the LPI data collection scheme.
+
+```{r}
+#|label: LPI Top Layer summary
+
+LPI_TopLayer_summary <- LPI_L2 |>
+  group_by(Line, TopLayer) |>
+  summarise(count = n()) |>
+  mutate(pct_TopLayer = count / 90 *100) # calculate % TopLayer hits
+
+TopLayer_plot <- ggplot(LPI_TopLayer_summary, aes(x = TopLayer, 
+                                         y = pct_TopLayer)) +
+  geom_col(fill = "skyblue", color = "black") +
+  ylab("Canopy Cover (%)") +
+  xlab("Top Layer") +
+  ggtitle("DBG LPI Summary") +
+  facet_grid(rows = vars(Line)) +
+  theme_minimal()
+TopLayer_plot
+
+ggsave(filename = here("output", "LPI_toplayer.jpeg"), plot = TopLayer_plot, device = "jpeg", width = 4, height = 3)
+```
+
+### Soil Surface Layer
+
+This is what the pin rests on (on the ground) in the LPI data collection scheme.
+
+```{r}
+#|label: LPI SoilSurface Summary
+
+# summarize the soil surface in terms of % hits from each type
+LPI_SoilSurface_summary <- LPI_L2 |>
+  group_by(SoilSurface) |>
+  summarise(count = n()) |>
+  mutate(pct_SoilSurface = count / 90*100) # calculate % SoilSurface hits
+
+# plot the soil surface hits data
+SoilSurface_plot <- ggplot(LPI_SoilSurface_summary, aes(x = SoilSurface,
+                                                y = pct_SoilSurface)) +
+  geom_col(fill = "skyblue", color = "black") +
+  ylab("Cover (%)") +
+  xlab("Surface Layer") +
+  ggtitle("2024-06-05 DBG LPI\nI'm not sure what the codes mean...") +
+  theme_minimal()
+SoilSurface_plot
+
+ggsave(filename = here("output", "LPI_surfacelayer.jpeg"), plot = SoilSurface_plot, device = "jpeg", width = 4, height = 3)
+```
+
+Note: We can also do analyses of surface layer relative to top layer with the data that we have - see below. However, we won't necessarily get full canopy cover in a sparsely vegetated environment. We might want to change top layer categorization to not require a physical hit? This will be a good next step to explore.
+
+### SoilSurface relative to TopLayer
+
+```{r}
+#|label: Top-vs-Surface-hits
+# This is a quick-n-dirty effort to summarize the relationship between canopy cover and soil surface cover with spring 2024 DBG data. 
+
+# Calculate the precent of surface hits in different top layers.
+Top_v_Surface_sum <- LPI_L2 |>
+  group_by(TopLayer, SoilSurface) |>
+  summarise(count = n()) |>
+  mutate(TopLayerTotal = sum(count),
+         pct_surface_hits = count/TopLayerTotal *100) 
+print(Top_v_Surface_sum)
+
+# plot the data
+Top_v_Surface_plot <- ggplot(Top_v_Surface_sum, aes(x = SoilSurface,
+                                                y = pct_surface_hits)) +
+  geom_col(fill = "skyblue", color = "black") +
+  ylab("Soil Surface Hits (%)") +
+  xlab("Soil Surface Layer") +
+  ggtitle("Distribution of Soil Surface Hits by Top Layer") +
+  facet_grid(rows = vars(TopLayer)) + # facet rows are diff TopLayers
+  theme_minimal()
+Top_v_Surface_plot
+```
+
+## Belt Transects
+
+```{r}
+#|label: Belt Transect data workup for shrub canopy cover
+
+# calculate shrub diameter and canopy area for individual shrubs
+BeltTran_df <- BeltTran_df |>
+  mutate(mean_diam = (Length + Width)/2, #calculate shrub mean diameter
+         area = 3.14159*(mean_diam/2)^2) #calculate shrub canopy area
+
+#Each belt transect is 90 m long and 2.5 m wide; define this variable
+belt_area <- 90*2.5
+
+#Belt Transect Canopy Area Summary
+BeltTran_summary <- BeltTran_df |>
+  group_by(Species) |>
+  summarise(count = n(),
+            total_canopy_area = sum(area, na.rm = TRUE)) |>
+  #calculate percent canopy cover
+  mutate(pct_CanopyCover = (total_canopy_area / belt_area)*100) 
+
+#Belt Transect Plot
+BeltTran_plot <- ggplot(BeltTran_summary, aes(x = Species,
+                                                y = pct_CanopyCover)) +
+  geom_col(fill = "skyblue", color = "black") +
+  ylab("Canopy Cover (%)") +
+  xlab("Species") +
+  ggtitle("2024-06-05 DBG Belt Transect") +
+  theme_minimal()
+BeltTran_plot
+
+ggsave(filename = here("output", "BeltTran.jpeg"), plot = BeltTran_plot, device = "jpeg", width = 4, height = 3)
+```
+
+## Gap Intercept
+
+```{r}
+#|label: GPI data workup
+
+### whoa ... something funny happened here and data seem to be inverse of expected after including both May and June sampling dates. HT needs to look again at the data. 
+
+Gap_df <- Gap_L2 |>
+  mutate(gap_length = (abs(Start - End))) #calculate gap length
+
+#Gap Length Summary
+#The GPI transect is 90 m long
+Gap_summary <- Gap_df |>
+  group_by(GapType) |>
+  summarise(count = n(),
+            total_gap = sum(gap_length, na.rm = TRUE)) |>
+  mutate(pct_gap_area = total_gap / 90*100, # calculate %gap area 
+         pct_cover = 100 - pct_gap_area) 
+
+#Gap Plot
+Gap_plot <- ggplot(Gap_summary, aes(x = GapType,
+                                                y = pct_cover)) +
+  geom_col(fill = "skyblue", color = "black") +
+  ylab("Cover (%)") +
+  xlab("Gap Type") +
+  ggtitle("2024-06-05 DBG Gap Intercept\n used inverse of gap for cover") +
+  theme_minimal()
+Gap_plot
+
+ggsave(filename = here("output", "Gap.jpeg"), plot = Gap_plot, device = "jpeg", width = 4, height = 3)
+```
+
+## Basal Intercept
+
+```{r}
+#|label: Basal Intercept data workup
+### HT Note: I changed the value for the End for line 4 (existing value was clearly a typo). I made up a value in order to have data to anaylze. 
+BasalIntercept_df <- BasalIntercept_df |>
+  mutate(basal_length = (abs(Start - End))) #calculate gap length
+
+#Basal Intercept Summary
+#The transect is 90 m long
+BasalInt_summary <- BasalIntercept_df |>
+  group_by(InterceptType) |>
+  summarise(count = n(),
+            total_basal = sum(basal_length, na.rm = TRUE)) |>
+  mutate(pct_basal_area = total_basal / 90*100) # calculate %gap area 
+
+#Basal Plot
+Basal_plot <- ggplot(BasalInt_summary, aes(x = InterceptType,
+                                                y = pct_basal_area)) +
+  geom_col(fill = "skyblue", color = "black") +
+  ylab("Cover (%)") +
+  xlab("Basal Intercept Type") +
+  ggtitle("2024-06-05 DBG Basal Intercept") +
+  theme_minimal()
+Basal_plot
+ggsave(filename = here("output", "Basal.jpeg"), plot = Basal_plot, device = "jpeg", width = 4, height = 3)
+```
+
+The following is exploratory of the relationship between shrub size and litter cover. However, I don't understand the data sufficiently to know if this is a meaningful relationship. Don't trust me on this one!
+
+```{r}
+#|label: Scatter plot with litter
+#HT note: I'm not sure that we should expect a relationship here as I'm not sure about details on data
+litter_scatter_plot <- ggplot(BasalIntercept_df, 
+                              aes(x = basal_length, 
+                                  y = PctLitter, 
+                                  color = InterceptType, 
+                                  shape = InterceptType)) +
+  geom_point(size = 3) +  # Adjust the size of the points
+  labs(x = "Basal Length (m)", y = "Percent Litter", 
+       title = "2024-06-05 DBG Basal Intercept") +
+  theme_minimal() +  # Use a minimal theme
+  theme(legend.title = element_blank())  # Remove the legend title
+litter_scatter_plot
+ggsave(filename = here("output", "Basal_v_litter.jpeg"), plot = litter_scatter_plot, device = "jpeg", width = 4, height = 3)
+```
