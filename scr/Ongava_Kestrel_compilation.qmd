@@ -179,6 +179,7 @@ p1 <- L1_kestrel_data |>
     ylab("RH (%)") +
     scale_x_datetime(date_breaks = "5 day", labels = date_format("%m-%d-%y")) +
     facet_grid(loggerID ~ .) 
+p1
 
 # Save the plot as a JPG in the "figs" folder
 ggsave(filename = "figs/RH_all_loggers.jpg", plot = p1, width = 8, height = 6, dpi = 300)
@@ -196,6 +197,7 @@ p2 <- L1_kestrel_data |>
     ylab("Temperature (C)") +
     scale_x_datetime(date_breaks = "5 day", labels = date_format("%m-%d-%y")) +
     facet_grid(loggerID ~ .) 
+p2
 
 # Save the plot as a JPG in the "figs" folder
 ggsave(filename = "figs/temperature_all_loggers.jpg", plot = p2, width = 8, height = 6, dpi = 300)
@@ -240,6 +242,7 @@ p3 <- L2_hourlymeans_df |>
   facet_grid(Microsite ~ .) +
   scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +  
   scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "dashed"))  
+p3
 
 # Save the plot as a JPG in the "figs" folder
 ggsave(filename = "figs/RH_by_trt.jpg", plot = p3, width = 8, height = 6, dpi = 300)
@@ -262,6 +265,7 @@ ggplot(aes(x=time, y=mean_T, color = WaterTrt, linetype = WaterTrt)) +
   facet_grid(Microsite ~ .) +
   scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +  
   scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "dashed"))
+p4
 
 # Save the plot as a JPG in the "figs" folder
 ggsave(filename = "figs/temperature_by_trt.jpg", plot = p4, width = 8, height = 6, dpi = 300)
