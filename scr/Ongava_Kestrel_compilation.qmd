@@ -15,7 +15,7 @@ This script reads in csv files from individual Kestrel loggers, merges the files
 
 Created January 24, 2025 Heather Throop
 
-To run this code, all raw Kestrel files should be placed within the "L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder.
+To run this code, all raw Kestrel files should be placed within the "L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder (currently mapped to HT's local drive as API token for Dropbox folder pull not working).
 
 Install Packages
 
@@ -26,6 +26,7 @@ library(stringr) # v. 1.2.0
 library(purrr) # v. 0.2.3
 library(tidyverse)
 library(scales)
+library(lubridate)
 ```
 
 Display information about package versions in use when this code was run.
@@ -35,7 +36,7 @@ Display information about package versions in use when this code was run.
 sessionInfo()
 ```
 
-# Read and Clean Data
+# L0: Read, Clean, Combine
 
 ### List Kestrel Files
 
@@ -70,7 +71,7 @@ read_fun = function(path) {
 
 # Line below is useful for testing if logger name is being assigned
 # change the number in brackets to check show the top section of each file
-read_fun(allfiles[1]) # use to test the function on an individual file
+read_fun(allfiles[5]) # use to test the function on an individual file
 ```
 
 ### Read in and Combine Files
@@ -91,6 +92,168 @@ df_loggers$loggerID <- as.numeric(df_loggers$loggerID)
 combined_kestrel_notcleaned <- combined_kestrel_notcleaned |>
   left_join(df_loggers, join_by(loggerID))
 
+#save the output as a .csv file - this is the combined L0 data
+write.csv(combined_kestrel_notcleaned, file = file.path(
+  "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/MicroclimateData/L1", 
+  "Ongava_kestrel_L0.csv"
+))
 ```
 
-### 
+## L1
+
+### Time formatting
+
+Check that the time column is populated *for all loggers*. If not, the format might be incorrect - sometimes Kestels are set to send the datetime output in different formats.
+
+```{r}
+#| label: Fix-datetime-formatting 
+
+# make a new file for messing around with date-time formats
+combined_kestrel_cleaning <- combined_kestrel_notcleaned 
+
+# Initialize the 'time' column
+combined_kestrel_cleaning$time <- NA
+
+# Try parsing with flexible parse_date_time function
+combined_kestrel_cleaning$time <- parse_date_time(
+  combined_kestrel_cleaning$datetime, 
+  orders = c("mdy HM", "ymd HMS p"),  # List of possible formats
+  tz = "Africa/Johannesburg",
+  quiet = FALSE  # This will show warnings and errors if parsing fails
+)
+
+# Check if there are still NA values after parsing
+if (any(is.na(combined_kestrel_cleaning$time))) {
+  cat("Some entries could not be parsed!\n")
+  # Print rows where the time column is still NA
+  print(combined_kestrel_cleaning[is.na(combined_kestrel_cleaning$time),])
+}
+
+# Remove rows with NA time values (if any remain after conversion)
+combined_kestrel_cleaning <- combined_kestrel_cleaning[!is.na(combined_kestrel_cleaning$time), ]
+
+# Ensure the time is in 24-hour format (POSIXct will handle it correctly)
+combined_kestrel_cleaning$time <- as.POSIXct(combined_kestrel_cleaning$time, format = "%Y-%m-%d %H:%M:%S")
+
+# Round down to the nearest minute (sets seconds to :00)
+# Accounts for loggers that oddly start logging at :30
+combined_kestrel_cleaning$time <- floor_date(combined_kestrel_cleaning$time, unit = "minute")
+
+# remove any data before the deployment date
+# NOTE THAT THE DATE MAY NEED TO BE ADJUSTED - PLACE THE DESIRED START DATE BELOW
+#L1_kestrel_data <-combined_kestrel_notcleaned[combined_kestrel_notcleaned[["time"]] #>= "2024-12-18", ]  
+#### added end point since one logger was left logging longer than the others (Januray 2025 - first download)
+L1_kestrel_data <- combined_kestrel_cleaning[
+  combined_kestrel_cleaning[["time"]] >= "2024-12-18" & 
+  combined_kestrel_cleaning[["time"]] <= "2025-01-14", 
+]
+
+# Check that all loggers are still present
+L1_kestrel_data |>
+  group_by(loggerID) |> 
+  summarize(n = n())
+
+#save the output as a .csv file
+write.csv(L1_kestrel_data, file = file.path(
+  "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/MicroclimateData/L1", 
+  "Ongava_kestrel_L1.csv"
+))
+
+# check the data carefully to see if any additional cleaning is needed!
+```
+
+### Individual Logger Plots
+
+Below are separate plots for each logger (grouped by treatment). These are intended to check the data (e.g., gaps in logs for different loggers and correct number of loggers per site).
+
+#### RH
+
+```{r}
+#| label: RH-plot
+
+L1_kestrel_data |>
+  ggplot(aes(x=time, y=RH, color = WaterTrt)) + 
+    labs(title = " ") +
+    geom_line() +
+    xlab(" ") +
+    ylab("RH (%)") +
+    scale_x_datetime(date_breaks = "5 day", labels = date_format("%m-%d-%y")) +
+    facet_grid(loggerID ~ .) 
+
+```
+
+#### Temperature
+
+```{r}
+
+L1_kestrel_data |>
+  ggplot(aes(x=time, y=temperature, color = WaterTrt, group = 1)) + 
+    labs(title = " ") +
+    geom_line() +
+    xlab(" ") +
+    ylab("Temperature (C)") +
+    scale_x_datetime(date_breaks = "5 day", labels = date_format("%m-%d-%y")) +
+    facet_grid(loggerID ~ .) 
+
+```
+
+# L2: Treatment Means
+
+*Check that the tibble output after running this chunk looks reasonable. N should equal the expected number of loggers. There should be values for SD and SE, assuming that there is more than one logger for each time point.*
+
+```{r}
+#| label: hourly-treatment-means
+# create df that condenses the multiple loggers per microsite and water treatment down to one mean value per hour
+
+L2_hourlymeans_df <- L1_kestrel_data |>
+  group_by(Microsite, WaterTrt, time) |>
+  summarize(
+               N    = sum(!is.na(RH)),
+               mean_T = mean(temperature, na.rm=TRUE),
+               sd_T   = sd(temperature, na.rm=TRUE),
+               se_T   = sd_T / sqrt(N),
+               mean_RH = mean(RH, na.rm=TRUE),
+               sd_RH   = sd(RH, na.rm=TRUE),
+               se_RH   = sd_RH / sqrt(N)
+               )
+
+```
+
+## Plots of hourly means
+
+### RH
+
+```{r}
+#| label: RH-by-treatment
+
+# plots of hourly means by treatment - RH
+L2_hourlymeans_df |>
+  ggplot(aes(x=time, y=mean_RH, color = WaterTrt, linetype = WaterTrt)) + 
+  geom_line() +
+  theme_bw() +
+  ylab("Relative Humidity (%)") +
+  xlab("") +
+  facet_grid(Microsite ~ .) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +  
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "dashed"))  
+
+
+```
+
+### Temperature
+
+```{r}
+#| label: temperature-by-treatment
+
+# plots of hourly means by treatment - temperature
+L2_hourlymeans_df |>
+ggplot(aes(x=time, y=mean_T, color = WaterTrt, linetype = WaterTrt)) + 
+  geom_line() +
+  theme_bw() +
+  ylab("Temperature (C)") +
+  xlab("") +
+  facet_grid(Microsite ~ .) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +  
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "dashed"))  
+
+```

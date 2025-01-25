@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Heather Throop">
+
+<title>OngavaDecomp Kestrel Data</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="Ongava_Kestrel_compilation_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Ongava_Kestrel_compilation_files/libs/quarto-html/quarto.js"></script>
+<script src="Ongava_Kestrel_compilation_files/libs/quarto-html/popper.min.js"></script>
+<script src="Ongava_Kestrel_compilation_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Ongava_Kestrel_compilation_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Ongava_Kestrel_compilation_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Ongava_Kestrel_compilation_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Ongava_Kestrel_compilation_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Ongava_Kestrel_compilation_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Ongava_Kestrel_compilation_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">OngavaDecomp Kestrel Data</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Heather Throop </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<p>Data compilation of Kestrel data from Ongava for the decomposition experiment (2024-2026)</p>
+<section id="overview" class="level1">
+<h1>Overview</h1>
+<p>This script reads in csv files from individual Kestrel loggers, merges the files, and synthesizes the data.</p>
+<p>Created January 24, 2025 Heather Throop</p>
+<p>To run this code, all raw Kestrel files should be placed within the “L0” folder for this project on Dropbox. This code pulls data from the Dropbox folder (currently mapped to HT’s local drive as API token for Dropbox folder pull not working).</p>
+<p>Install Packages</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here) <span class="co"># v. 0.1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>here() starts at /Users/hthroop/Documents/GitHub/OngavaDecomp</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr) <span class="co"># v. 1.2.0</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(purrr) <span class="co"># v. 0.2.3</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.3     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ tibble    3.2.1
+✔ ggplot2   3.4.3     ✔ tidyr     1.3.0
+✔ lubridate 1.9.3     </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(scales)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'scales'
+
+The following object is masked from 'package:readr':
+
+    col_factor
+
+The following object is masked from 'package:purrr':
+
+    discard</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Display information about package versions in use when this code was run.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.3.2 (2023-10-31)
+Platform: x86_64-apple-darwin20 (64-bit)
+Running under: macOS Monterey 12.6
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRblas.0.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: America/Phoenix
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] scales_1.2.1    lubridate_1.9.3 forcats_1.0.0   dplyr_1.1.3    
+ [5] readr_2.1.4     tidyr_1.3.0     tibble_3.2.1    ggplot2_3.4.3  
+ [9] tidyverse_2.0.0 purrr_1.0.2     stringr_1.5.0   here_1.0.1     
+
+loaded via a namespace (and not attached):
+ [1] gtable_0.3.4      jsonlite_1.8.9    compiler_4.3.2    tidyselect_1.2.0 
+ [5] yaml_2.3.7        fastmap_1.1.1     R6_2.5.1          generics_0.1.3   
+ [9] knitr_1.44        htmlwidgets_1.6.2 munsell_0.5.0     rprojroot_2.0.4  
+[13] tzdb_0.4.0        pillar_1.9.0      rlang_1.1.2       utf8_1.2.4       
+[17] stringi_1.7.12    xfun_0.40         timechange_0.2.0  cli_3.6.1        
+[21] withr_2.5.2       magrittr_2.0.3    digest_0.6.33     grid_4.3.2       
+[25] rstudioapi_0.15.0 hms_1.1.3         lifecycle_1.0.4   vctrs_0.6.4      
+[29] evaluate_0.23     glue_1.6.2        fansi_1.0.5       colorspace_2.1-0 
+[33] rmarkdown_2.25    tools_4.3.2       pkgconfig_2.0.3   htmltools_0.5.6  </code></pre>
+</div>
+</div>
+</section>
+<section id="l0-read-clean-combine" class="level1">
+<h1>L0: Read, Clean, Combine</h1>
+<section id="list-kestrel-files" class="level3">
+<h3 class="anchored" data-anchor-id="list-kestrel-files">List Kestrel Files</h3>
+<p>Note that the “more columns than column names” error is likely to happen. Find the offending file (use the last line of code in this chunk to do so) and delete extra columns to the right of the data.<br>
+<br>
+Much of this code is based on the commentary from: https://aosmith.rbind.io/2017/12/31/many-datasets/</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># list all files to read in</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="do">### Note that this reference from Heather's laptop and may need to be changed for a different machine</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>allfiles <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">path =</span> <span class="fu">file.path</span>(<span class="st">"/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data &amp; Metadata Archives/OngavaDungDecay/MicroclimateData/L0"</span>),  </span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.csv$"</span>,  <span class="co"># Ensure proper regex for .csv files  </span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">full.names =</span> <span class="cn">TRUE</span>  </span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co"># reading and extract loggerID</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>read_fun <span class="ot">=</span> <span class="cf">function</span>(path) {</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  test <span class="ot">=</span> <span class="fu">read.csv</span>(path, </span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>                  <span class="at">skip =</span> <span class="dv">5</span>,</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>                  <span class="at">header =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>                  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"temperature"</span>, <span class="st">"RH"</span>, <span class="st">"heatindex"</span>, <span class="st">"dewpoint"</span>, <span class="st">"datatype"</span>) )</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  allnames <span class="ot">=</span> <span class="fu">str_split</span>( path, <span class="at">pattern =</span> <span class="st">"/"</span>, <span class="at">simplify =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a> test<span class="sc">$</span>loggerID <span class="ot">=</span> <span class="fu">str_extract</span>(allnames[, <span class="fu">ncol</span>(allnames)], <span class="at">pattern =</span> <span class="st">"2[0-9][0-9][0-9][0-9][0-9][0-9]"</span>) <span class="co">#extract the loggerID from the file name and add as a column</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>  test<span class="sc">$</span>RH <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(test<span class="sc">$</span>RH))</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>  test<span class="sc">$</span>heatindex <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(test<span class="sc">$</span>heatindex))</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>  test<span class="sc">$</span>dewpoint <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(test<span class="sc">$</span>dewpoint))</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>  test<span class="sc">$</span>temperature <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(test<span class="sc">$</span>temperature))</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>  test<span class="sc">$</span>loggerID <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(test<span class="sc">$</span>loggerID))</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>  test</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Line below is useful for testing if logger name is being assigned</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a><span class="co"># change the number in brackets to check show the top section of each file</span></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a><span class="fu">read_fun</span>(allfiles[<span class="dv">5</span>]) <span class="co"># use to test the function on an individual file</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in read_fun(allfiles[5]): NAs introduced by coercion
+
+Warning in read_fun(allfiles[5]): NAs introduced by coercion
+
+Warning in read_fun(allfiles[5]): NAs introduced by coercion</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>          datetime temperature    RH heatindex dewpoint datatype loggerID
+1    12/10/24 9:00        30.0  33.9      29.2     12.4    point  2605740
+2   12/10/24 10:00        32.1  35.7      32.4     15.0    point  2605740
+3   12/10/24 11:00        33.2  32.0      33.5     14.3    point  2605740
+4   12/10/24 12:00        35.6  30.0      36.8     15.4    point  2605740
+5   12/10/24 13:00        36.9  26.8      37.9     14.7    point  2605740
+6   12/10/24 14:00        37.4  25.4      38.1     14.3    point  2605740
+7   12/10/24 15:00        38.7  22.7      39.3     13.7    point  2605740
+8   12/10/24 16:00        38.8  21.0      39.0     12.6    point  2605740
+9   12/10/24 17:00        38.2  19.7      37.5     11.0    point  2605740
+10  12/10/24 18:00        37.8  19.2      37.0     10.4    point  2605740
+11  12/10/24 19:00        36.5  18.9      35.2      9.1    point  2605740
+12  12/10/24 20:00        34.8  19.1      33.0      7.9    point  2605740
+13  12/10/24 21:00        32.6  21.0      30.8      7.5    point  2605740
+14  12/10/24 22:00        31.1  23.5      29.1      7.8    point  2605740
+15  12/10/24 23:00        30.3  26.3      28.6      8.9    point  2605740
+16   12/11/24 0:00        29.0  29.1      27.4      9.2    point  2605740
+17   12/11/24 1:00        28.2  31.6      26.5      9.8    point  2605740
+18   12/11/24 2:00        27.4  32.6      25.7      9.5    point  2605740
+19   12/11/24 3:00        26.5  33.4      24.9      9.1    point  2605740
+20   12/11/24 4:00        26.1  35.1      24.7      9.5    point  2605740
+21   12/11/24 5:00        26.6  37.4      25.3     10.9    point  2605740
+22   12/11/24 6:00        26.0  38.0      24.8     10.6    point  2605740
+23   12/11/24 7:00        25.9  39.2      24.7     11.0    point  2605740
+24   12/11/24 8:00        26.8  40.3      25.9     12.2    point  2605740
+25   12/11/24 9:00        29.3  40.1      29.0     14.3    point  2605740
+26  12/11/24 10:00        32.0  37.7      32.9     15.8    point  2605740
+27  12/11/24 11:00        35.5  33.3      37.5     16.9    point  2605740
+28  12/11/24 12:00        37.2  29.5      39.2     16.5    point  2605740
+29  12/11/24 13:00        38.0  25.8      39.2     15.0    point  2605740
+30  12/11/24 14:00        38.0  25.2      39.0     14.6    point  2605740
+31  12/11/24 15:00        35.2  28.1      35.7     14.0    point  2605740
+32  12/11/24 16:00        36.2  27.1      37.0     14.3    point  2605740
+33  12/11/24 17:00        36.5  25.3      36.7     13.4    point  2605740
+34  12/11/24 18:00        35.2  26.1      35.1     12.9    point  2605740
+35  12/11/24 19:00        32.3  28.4      31.4     11.7    point  2605740
+36  12/11/24 20:00        30.9  31.1      29.9     11.9    point  2605740
+37  12/11/24 21:00        28.7  35.6      27.6     12.0    point  2605740
+38  12/11/24 22:00        24.7  44.8      23.7     12.0    point  2605740
+39  12/11/24 23:00        23.8  50.8      23.2     13.0    point  2605740
+40   12/12/24 0:00        22.7  55.9      22.4     13.4    point  2605740
+41   12/12/24 1:00        22.7  57.3      22.5     13.8    point  2605740
+42   12/12/24 2:00        22.0  59.2      21.9     13.7    point  2605740
+43   12/12/24 3:00        20.8  63.8      20.5     13.7    point  2605740
+44   12/12/24 4:00        20.7  67.1      20.5     14.3    point  2605740
+45   12/12/24 5:00        20.7  68.8      20.5     14.7    point  2605740
+46   12/12/24 6:00        20.7  71.1      20.8     15.3    point  2605740
+47   12/12/24 7:00        20.8  72.9      20.9     15.8    point  2605740
+48   12/12/24 8:00        21.2  75.1      21.7     16.6    point  2605740
+49   12/12/24 9:00        22.4  77.9      23.0     18.3    point  2605740
+50  12/12/24 10:00        24.3  75.8      25.1     19.7    point  2605740
+51  12/12/24 11:00        27.2  70.6      29.6     21.4    point  2605740
+52  12/12/24 12:00        29.6  64.0      33.7     22.1    point  2605740
+53  12/12/24 13:00        31.7  59.8      37.1     22.9    point  2605740
+54  12/12/24 14:00        32.9  54.0      38.5     22.3    point  2605740
+55  12/12/24 15:00        33.7  49.9      39.0     21.8    point  2605740
+56  12/12/24 16:00        34.6  45.8      39.7     21.3    point  2605740
+57  12/12/24 17:00        35.0  43.0      39.5     20.5    point  2605740
+58  12/12/24 18:00        34.3  38.8      37.1     18.3    point  2605740
+59  12/12/24 19:00        33.3  37.8      34.9     16.9    point  2605740
+60  12/12/24 20:00        31.5  39.7      32.2     16.1    point  2605740
+61  12/12/24 21:00        27.7  44.0      27.2     14.4    point  2605740
+62  12/12/24 22:00        26.0  48.1      25.4     14.1    point  2605740
+63  12/12/24 23:00        25.6  49.5      25.1     14.3    point  2605740
+64   12/13/24 0:00        25.5  50.7      25.1     14.6    point  2605740
+65   12/13/24 1:00        25.4  51.7      25.0     14.7    point  2605740
+66   12/13/24 2:00        25.3  51.7      25.0     14.7    point  2605740
+67   12/13/24 3:00        25.2  52.1      24.8     14.7    point  2605740
+68   12/13/24 4:00        24.7  53.2      24.2     14.6    point  2605740
+69   12/13/24 5:00        24.0  54.4      23.5     14.2    point  2605740
+70   12/13/24 6:00        23.5  56.1      23.1     14.2    point  2605740
+71   12/13/24 7:00        23.5  57.6      23.2     14.6    point  2605740
+72   12/13/24 8:00        24.2  58.5      24.1     15.6    point  2605740
+73   12/13/24 9:00        25.3  58.6      25.3     16.6    point  2605740
+74  12/13/24 10:00        26.9  57.0      27.5     17.7    point  2605740
+75  12/13/24 11:00        29.4  52.2      30.9     18.6    point  2605740
+76  12/13/24 12:00        30.5  47.3      31.9     18.0    point  2605740
+77  12/13/24 13:00        31.7  44.3      33.6     18.1    point  2605740
+78  12/13/24 14:00        32.2  42.1      34.1     17.7    point  2605740
+79  12/13/24 15:00        32.6  40.9      34.6     17.6    point  2605740
+80  12/13/24 16:00        33.8  38.9      36.2     17.9    point  2605740
+81  12/13/24 17:00        34.4  36.4      36.4     17.3    point  2605740
+82  12/13/24 18:00        34.2  34.5      35.7     16.4    point  2605740
+83  12/13/24 19:00        33.5  33.8      34.2     15.4    point  2605740
+84  12/13/24 20:00        32.3  33.6      32.5     14.2    point  2605740
+85  12/13/24 21:00        30.5  35.1      30.1     13.4    point  2605740
+86  12/13/24 22:00        26.1  45.4      25.3     13.4    point  2605740
+87  12/13/24 23:00        23.8  52.5      23.3     13.5    point  2605740
+88   12/14/24 0:00        22.6  58.3      22.4     14.0    point  2605740
+89   12/14/24 1:00        22.3  61.5      22.2     14.5    point  2605740
+90   12/14/24 2:00        22.6  63.8      22.7     15.4    point  2605740
+91   12/14/24 3:00        22.7  65.1      22.9     15.8    point  2605740
+92   12/14/24 4:00        22.5  66.0      22.8     15.9    point  2605740
+93   12/14/24 5:00        22.1  66.0      22.3     15.4    point  2605740
+94   12/14/24 6:00        21.8  66.8      22.0     15.3    point  2605740
+95   12/14/24 7:00        21.8  68.0      22.0     15.6    point  2605740
+96   12/14/24 8:00        22.7  69.3      23.1     16.8    point  2605740
+97   12/14/24 9:00        24.8  68.0      25.2     18.5    point  2605740
+98  12/14/24 10:00        27.8  62.2      29.6     19.9    point  2605740
+99  12/14/24 11:00        30.3  54.3      33.0     20.0    point  2605740
+100 12/14/24 12:00        32.1  47.9      35.1     19.7    point  2605740
+101 12/14/24 13:00        33.0  43.7      35.8     19.0    point  2605740
+102 12/14/24 14:00        32.7  39.6      34.3     17.2    point  2605740
+103 12/14/24 15:00        32.7  37.6      34.1     16.4    point  2605740
+104 12/14/24 16:00        32.9  37.1      34.1     16.3    point  2605740
+105 12/14/24 17:00        33.0  35.2      33.9     15.6    point  2605740
+106 12/14/24 18:00        32.3  35.6      32.9     15.2    point  2605740
+107 12/14/24 19:00        31.3  36.6      31.5     14.7    point  2605740
+108 12/14/24 20:00        30.0  37.8      29.8     14.1    point  2605740
+109 12/14/24 21:00        28.8  39.4      28.2     13.6    point  2605740
+110 12/14/24 22:00        27.9  41.3      27.1     13.5    point  2605740
+111 12/14/24 23:00        27.4  42.9      26.6     13.6    point  2605740
+112  12/15/24 0:00        26.0  45.4      25.3     13.3    point  2605740
+113  12/15/24 1:00        25.1  47.2      24.4     13.1    point  2605740
+114  12/15/24 2:00        24.9  44.4      23.8     11.9    point  2605740
+115  12/15/24 3:00        24.5  41.5      23.2     10.6    point  2605740
+116  12/15/24 4:00        24.0  40.7      22.8      9.8    point  2605740
+117  12/15/24 5:00        22.9  40.9      21.9      9.0    point  2605740
+118  12/15/24 6:00        22.5  41.8      21.6      8.9    point  2605740
+119  12/15/24 7:00        22.9  42.2      21.9      9.4    point  2605740
+120  12/15/24 8:00        25.2  42.1      24.0     11.4    point  2605740
+121  12/15/24 9:00        28.1  40.9      27.4     13.6    point  2605740
+122 12/15/24 10:00        30.8  39.0      31.0     15.2    point  2605740
+123 12/15/24 11:00        33.6  36.2      35.0     16.5    point  2605740
+124 12/15/24 12:00        35.6  32.6      37.6     16.6    point  2605740
+125 12/15/24 13:00        36.4  30.5      38.2     16.3    point  2605740
+126 12/15/24 14:00        36.6  28.7      37.9     15.5    point  2605740
+127 12/15/24 15:00        37.0  27.8      38.4     15.4    point  2605740
+128 12/15/24 16:00        37.1  26.8      38.2     14.9    point  2605740
+129 12/15/24 17:00        36.7  26.0      37.2     14.1    point  2605740
+130 12/15/24 18:00        35.2  26.2      35.1     12.9    point  2605740
+131 12/15/24 19:00        32.4  36.2      33.2     15.5    point  2605740
+132 12/15/24 20:00        24.1  72.1      24.8     18.8    point  2605740
+133 12/15/24 21:00        21.7  87.0      22.5     19.4    point  2605740
+134 12/15/24 22:00        22.0  92.2      23.0     20.7    point  2605740
+135 12/15/24 23:00        22.6  93.8      24.1     21.6    point  2605740
+136  12/16/24 0:00        23.1  94.3      24.8     22.1    point  2605740
+137  12/16/24 1:00        23.3  94.3      25.1     22.4    point  2605740
+138  12/16/24 2:00        23.4  94.4      25.1     22.4    point  2605740
+139  12/16/24 3:00        23.5  94.7      25.2     22.6    point  2605740
+140  12/16/24 4:00        23.4  94.8      25.1     22.5    point  2605740
+141  12/16/24 5:00        23.2  95.0      24.8     22.3    point  2605740
+142  12/16/24 6:00        23.1  95.2      24.9     22.3    point  2605740
+143  12/16/24 7:00        22.9  95.4      24.6     22.1    point  2605740
+144  12/16/24 8:00        25.2  95.1      28.1     24.4    point  2605740
+145  12/16/24 9:00        26.4  95.1      31.1     25.5    point  2605740
+146 12/16/24 10:00        28.0  94.5      35.3     27.1    point  2605740
+147 12/16/24 11:00        30.2  93.2      42.3     29.0    point  2605740
+148 12/16/24 12:00        32.3  91.7      50.0     30.7    point  2605740
+149 12/16/24 13:00        33.4  91.6      54.7     31.8    point  2605740
+150 12/16/24 14:00        34.0  91.5      57.7     32.4    point  2605740
+151 12/16/24 15:00        34.2  91.2      58.4     32.6    point  2605740
+152 12/16/24 16:00        34.3  91.2      58.3     32.6    point  2605740
+153 12/16/24 17:00        33.6  91.6      55.6     32.0    point  2605740
+154 12/16/24 18:00        32.9  92.2      52.8     31.5    point  2605740
+155 12/16/24 19:00        32.1  92.6      49.9     30.8    point  2605740
+156 12/16/24 20:00        30.8  92.8      44.5     29.5    point  2605740
+157 12/16/24 21:00        29.7  88.8      39.4     27.6    point  2605740
+158 12/16/24 22:00        28.7  86.3      36.0     26.2    point  2605740
+159 12/16/24 23:00        27.6  87.0      32.9     25.2    point  2605740
+160  12/17/24 0:00        26.5  87.2      30.5     24.2    point  2605740
+161  12/17/24 1:00        25.7  89.1      28.9     23.8    point  2605740
+162  12/17/24 2:00        24.9  89.6      26.9     23.0    point  2605740
+163  12/17/24 3:00        23.8  91.3      25.6     22.3    point  2605740
+164  12/17/24 4:00        22.7  92.1      24.0     21.3    point  2605740
+165  12/17/24 5:00        21.7  92.9      22.6     20.5    point  2605740
+166  12/17/24 6:00        21.2  93.9      22.2     20.2    point  2605740
+167  12/17/24 7:00        21.0  94.3      21.9     20.0    point  2605740
+168  12/17/24 8:00        31.3  34.9      31.2     14.0    point  2605740
+169  12/17/24 9:00        38.5  22.7      39.2     13.5    point  2605740
+170 12/17/24 10:00        42.7  17.7      43.3     13.1    point  2605740
+171 12/17/24 11:00        51.7  12.1      52.8     14.3    point  2605740
+172 12/17/24 12:00        55.0  13.3      58.5     18.3    point  2605740
+173 12/17/24 13:00        48.0  12.5      47.9     11.9    point  2605740
+174 12/17/24 14:00        54.0  12.1      55.9     15.9    point  2605740
+175 12/17/24 15:00        37.0  21.0      36.5     11.1    point  2605740
+176 12/17/24 16:00        34.2  21.4      32.6      9.0    point  2605740
+177 12/17/24 17:00        32.9  20.5      30.9      7.3    point  2605740
+178 12/17/24 18:00        28.8  24.2      26.6      6.3    point  2605740
+179 12/17/24 19:00        24.7  23.1      22.4      2.3    point  2605740
+180 12/17/24 20:00        21.8  27.5      20.3      2.3    point  2605740
+181 12/17/24 21:00        20.6  28.5      18.8      1.7    point  2605740
+182 12/17/24 22:00        19.1  39.1      17.1      4.9    point  2605740
+183 12/17/24 23:00        18.5  43.2      16.3      5.8    point  2605740
+184  12/18/24 0:00        16.3  54.9      14.9      7.2    point  2605740
+185  12/18/24 1:00        15.4  54.6      14.1      6.3    point  2605740
+186  12/18/24 2:00        15.0  58.4      13.8      6.9    point  2605740
+187  12/18/24 3:00        13.2  74.5      12.8      8.8    point  2605740
+188  12/18/24 4:00        14.1  73.7      13.6      9.4    point  2605740
+189  12/18/24 5:00        13.7  81.1      13.6     10.5    point  2605740
+190  12/18/24 6:00        12.8  82.8      12.7      9.9    point  2605740
+191  12/18/24 7:00        16.7  65.7      15.7     10.3    point  2605740
+192  12/18/24 8:00        21.5  52.3      21.0     11.3    point  2605740
+193  12/18/24 9:00        26.4  37.9      25.1     10.9    point  2605740
+194 12/18/24 10:00        38.3  19.4      37.7     10.9    point  2605740
+195 12/18/24 11:00        52.4  16.5      57.5     19.7    point  2605740
+196 12/18/24 12:00        51.0  10.9      51.0     12.1    point  2605740
+197 12/18/24 13:00        54.4   8.9      54.0     11.6    point  2605740
+198 12/18/24 14:00        54.7   6.6      52.2      7.2    point  2605740
+199 12/18/24 15:00        47.7   8.2      45.1      5.4    point  2605740
+200 12/18/24 16:00        40.8  10.7      38.2      4.1    point  2605740
+201 12/18/24 17:00        40.3  10.1      37.5      3.0    point  2605740
+202 12/18/24 18:00        35.0  11.9      32.0      1.3    point  2605740
+203 12/18/24 19:00        28.9  14.5      26.0     -0.7    point  2605740
+204 12/18/24 20:00        25.2  16.1      22.5     -2.3    point  2605740
+205 12/18/24 21:00        23.0  20.4      20.8     -0.9    point  2605740
+206 12/18/24 22:00        22.0  22.0      20.2     -0.7    point  2605740
+207 12/18/24 23:00        20.3  26.5      18.1      0.4    point  2605740
+208  12/19/24 0:00        19.0  34.2      16.7      2.9    point  2605740
+209  12/19/24 1:00        17.3  44.4      15.3      5.1    point  2605740
+210  12/19/24 2:00        16.9  47.8      15.0      5.7    point  2605740
+211  12/19/24 3:00        15.8  49.7      14.2      5.3    point  2605740
+212  12/19/24 4:00        18.7  39.1      16.4      4.5    point  2605740
+213  12/19/24 5:00        18.0  37.6      15.5      3.3    point  2605740
+214  12/19/24 6:00        12.9  55.5      11.8      4.2    point  2605740
+215  12/19/24 7:00        16.5  55.5      15.1      7.6    point  2605740
+216  12/19/24 8:00        27.6  23.5      25.3      4.9    point  2605740
+217  12/19/24 9:00        36.7  15.8      34.5      6.6    point  2605740
+218 12/19/24 10:00        51.0   9.9      50.4     10.7    point  2605740
+219 12/19/24 11:00        52.4   6.8      49.8      6.2    point  2605740
+220 12/19/24 12:00        58.9   5.9      56.4      8.6    point  2605740
+221 12/19/24 13:00        58.9   5.0      55.4      6.3    point  2605740
+222 12/19/24 14:00        61.1   4.8      57.5      6.9    point  2605740
+223 12/19/24 15:00        57.6   4.7      53.8      4.5    point  2605740
+224 12/19/24 16:00        43.6   6.9      40.0      0.0    point  2605740
+225 12/19/24 17:00        38.9   7.7      35.4     -1.7    point  2605740
+226 12/19/24 18:00        35.3   8.3      31.7     -3.5    point  2605740
+227 12/19/24 19:00        30.3   9.1      26.9     -5.9    point  2605740
+228 12/19/24 20:00        26.4  12.0      23.4     -5.3    point  2605740
+229 12/19/24 21:00        24.9  13.9      22.1     -4.5    point  2605740
+230 12/19/24 22:00        24.2  15.8      21.6     -3.3    point  2605740
+231 12/19/24 23:00        22.6  19.4      20.4     -1.9    point  2605740
+232  12/20/24 0:00        21.5  22.2      19.8     -1.0    point  2605740
+233  12/20/24 1:00        20.3  28.1      18.1      1.2    point  2605740
+234  12/20/24 2:00        19.4  31.4      17.2      2.0    point  2605740
+235  12/20/24 3:00        17.4  33.0      14.8      1.0    point  2605740
+236  12/20/24 4:00        15.5  31.6      13.1     -1.3    point  2605740
+237  12/20/24 5:00        15.7  28.7      13.2     -2.4    point  2605740
+238  12/20/24 6:00        15.1  29.1      12.7     -2.8    point  2605740
+239  12/20/24 7:00        18.5  29.3      15.6      0.2    point  2605740
+240  12/20/24 8:00        32.0  19.1      29.7      5.6    point  2605740
+241  12/20/24 9:00        43.6  13.7      42.5      9.9    point  2605740
+242 12/20/24 10:00        46.5  15.6      47.4     14.1    point  2605740
+243 12/20/24 11:00        56.1  13.6      60.4     19.4    point  2605740
+244 12/20/24 12:00        58.0  10.9      60.7     17.3    point  2605740
+245 12/20/24 13:00        61.9   9.7      65.0     18.4    point  2605740
+246 12/20/24 14:00        52.8  11.8      54.0     14.7    point  2605740
+247 12/20/24 15:00        58.8   8.1      58.8     13.4    point  2605740
+248 12/20/24 16:00        46.3  14.0      46.2     12.3    point  2605740
+249 12/20/24 17:00        37.2  21.1      36.7     11.3    point  2605740
+250 12/20/24 18:00        37.8  19.9      37.0     10.9    point  2605740
+251 12/20/24 19:00        33.2  25.4      32.2     10.8    point  2605740
+252 12/20/24 20:00        29.7  34.5      28.8     12.4    point  2605740
+253 12/20/24 21:00        28.8  39.0      28.1     13.4    point  2605740
+254 12/20/24 22:00        27.9  37.1      26.7     11.9    point  2605740
+255 12/20/24 23:00        27.2  38.5      26.2     11.9    point  2605740
+256  12/21/24 0:00        27.0  38.4      25.9     11.7    point  2605740
+257  12/21/24 1:00        26.0  32.8      24.3      8.4    point  2605740
+258  12/21/24 2:00        24.3  39.5      23.0      9.7    point  2605740
+259  12/21/24 3:00        23.2  43.4      22.2     10.1    point  2605740
+260  12/21/24 4:00        24.8  52.4      24.3     14.4    point  2605740
+261  12/21/24 5:00        24.3  53.4      23.9     14.3    point  2605740
+262  12/21/24 6:00        24.1  56.4      23.7     14.9    point  2605740
+263  12/21/24 7:00        23.8  60.1      23.7     15.6    point  2605740
+264  12/21/24 8:00        27.3  51.1      27.4     16.3    point  2605740
+265  12/21/24 9:00        32.0  39.2      33.0     16.4    point  2605740
+266 12/21/24 10:00        43.5  23.6      47.6     18.2    point  2605740
+267 12/21/24 11:00        50.1  16.6      53.9     18.0    point  2605740
+268 12/21/24 12:00        60.2  14.2      67.9     23.3    point  2605740
+269 12/21/24 13:00        60.5  12.2      66.0     21.1    point  2605740
+270 12/21/24 14:00        59.2  12.3      64.2     20.2    point  2605740
+271 12/21/24 15:00        60.0   9.9      62.3     17.2    point  2605740
+272 12/21/24 16:00        46.9  16.1      48.4     14.9    point  2605740
+273 12/21/24 17:00        43.3  18.8      44.6     14.5    point  2605740
+274 12/21/24 18:00        39.6  20.6      40.0     12.9    point  2605740
+275 12/21/24 19:00        35.2  27.1      35.3     13.4    point  2605740
+276 12/21/24 20:00        29.8  84.2      38.6     26.8    point  2605740
+277 12/21/24 21:00        23.8  94.1      25.8     22.8    point  2605740
+278 12/21/24 22:00        21.0  95.9      21.9     20.3    point  2605740
+279 12/21/24 23:00        19.7  95.9      20.4     19.0    point  2605740
+280  12/22/24 0:00        21.0  95.4      21.9     20.2    point  2605740
+281  12/22/24 1:00        20.7  95.8      21.7     20.0    point  2605740
+282  12/22/24 2:00        20.5  95.7      21.4     19.8    point  2605740
+283  12/22/24 3:00        20.1  96.1      21.0     19.5    point  2605740
+284  12/22/24 4:00        20.1  96.1      21.0     19.5    point  2605740
+285  12/22/24 5:00        20.3  96.1      21.1     19.6    point  2605740
+286  12/22/24 6:00        20.3  96.1      21.1     19.6    point  2605740
+287  12/22/24 7:00        21.2  96.2      22.1     20.5    point  2605740
+288  12/22/24 8:00        22.3  96.0      23.6     21.6    point  2605740
+289  12/22/24 9:00        24.1  95.4      26.1     23.3    point  2605740
+290 12/22/24 10:00        30.7  91.7      43.5     29.2    point  2605740
+291 12/22/24 11:00        32.1  91.0      49.2     30.5    point  2605740
+292 12/22/24 12:00        51.3  36.8      78.5     32.3    point  2605740
+293 12/22/24 13:00        51.7  27.3      67.6     27.5    point  2605740
+294 12/22/24 14:00        48.5  36.2      69.6     29.6    point  2605740
+295 12/22/24 15:00        40.2  36.9      48.6     22.6    point  2605740
+296 12/22/24 16:00        39.8  37.3      47.6     22.4    point  2605740
+297 12/22/24 17:00        32.8  46.7      36.4     19.9    point  2605740
+298 12/22/24 18:00        29.4  55.9      31.6     19.7    point  2605740
+299 12/22/24 19:00        27.0  62.6      28.3     19.3    point  2605740
+300 12/22/24 20:00        22.8  78.3      23.6     18.9    point  2605740
+301 12/22/24 21:00        22.4  84.0      23.3     19.5    point  2605740
+302 12/22/24 22:00        21.4  88.3      22.1     19.4    point  2605740
+303 12/22/24 23:00        20.6  97.0      21.5     20.1    point  2605740
+304  12/23/24 0:00        20.9  97.1      21.9     20.4    point  2605740
+305  12/23/24 1:00        21.0  97.1      22.0     20.6    point  2605740
+306  12/23/24 2:00        20.4  97.4      21.3     20.0    point  2605740
+307  12/23/24 3:00        19.9  97.6      20.9     19.5    point  2605740
+308  12/23/24 4:00        19.4  97.9      20.3     19.1    point  2605740
+309  12/23/24 5:00        19.7  97.9      20.5     19.3    point  2605740
+310  12/23/24 6:00        19.6  98.1      20.4     19.3    point  2605740
+311  12/23/24 7:00        21.2  99.0      22.3     21.0    point  2605740
+312  12/23/24 8:00        21.8  99.6      23.0     21.7    point  2605740
+313  12/23/24 9:00        26.9  98.4      33.1     26.7    point  2605740
+314 12/23/24 10:00        33.7  92.8      56.6     32.3    point  2605740
+315 12/23/24 11:00        43.5  56.7      73.8     33.0    point  2605740
+316 12/23/24 12:00        46.7  33.1      61.5     26.5    point  2605740
+317 12/23/24 13:00        43.6  35.0      55.3     24.7    point  2605740
+318 12/23/24 14:00        48.9  27.6      61.3     25.3    point  2605740
+319 12/23/24 15:00        54.6  18.5      63.8     23.3    point  2605740
+320 12/23/24 16:00        35.2  37.7      38.3     18.5    point  2605740
+321 12/23/24 17:00        37.1  32.7      40.3     18.0    point  2605740
+322 12/23/24 18:00        33.1  41.6      35.5     18.3    point  2605740
+323 12/23/24 19:00        28.1  46.8      28.0     15.6    point  2605740
+324 12/23/24 20:00        23.2  66.4      23.4     16.6    point  2605740
+325 12/23/24 21:00        22.2  73.8      22.6     17.3    point  2605740
+326 12/23/24 22:00        21.6  76.6      22.2     17.4    point  2605740
+327 12/23/24 23:00        20.1  86.6      20.6     17.8    point  2605740
+328  12/24/24 0:00        19.3  90.0      19.8     17.7    point  2605740
+329  12/24/24 1:00        19.3  91.1      19.7     17.8    point  2605740
+330  12/24/24 2:00        18.9  89.5      19.1     17.1    point  2605740
+331  12/24/24 3:00        18.5  85.4      18.6     16.0    point  2605740
+332  12/24/24 4:00        18.2  82.0      18.1     15.1    point  2605740
+333  12/24/24 5:00        18.3  83.0      18.2     15.4    point  2605740
+334  12/24/24 6:00        18.4  74.9      17.8     13.9    point  2605740
+335  12/24/24 7:00        18.9  69.7      18.2     13.2    point  2605740
+336  12/24/24 8:00        21.0  96.3      22.0     20.4    point  2605740
+337  12/24/24 9:00        26.9  94.1      32.4     25.9    point  2605740
+338 12/24/24 10:00        34.7  92.6      61.2     33.3    point  2605740
+339 12/24/24 11:00        50.6  24.4      62.2     24.6    point  2605740
+340 12/24/24 12:00        49.3  27.5      62.3     25.6    point  2605740
+341 12/24/24 13:00        57.0  20.1      70.6     26.5    point  2605740
+342 12/24/24 14:00        55.4  17.7      64.2     23.2    point  2605740
+343 12/24/24 15:00        50.3  23.1      60.2     23.4    point  2605740
+344 12/24/24 16:00        34.8  38.1      37.8     18.5    point  2605740
+345 12/24/24 17:00        35.8  35.1      38.6     18.0    point  2605740
+346 12/24/24 18:00        30.8  36.9      30.6     14.4    point  2605740
+347 12/24/24 19:00        26.8  46.8      26.5     14.5    point  2605740
+348 12/24/24 20:00        22.7  63.8      22.9     15.5    point  2605740
+349 12/24/24 21:00        22.0  71.1      22.3     16.5    point  2605740
+350 12/24/24 22:00        21.3  87.1      22.1     19.1    point  2605740
+351 12/24/24 23:00        20.8  86.3      21.3     18.4    point  2605740
+352  12/25/24 0:00        20.3  90.9      20.9     18.7    point  2605740
+353  12/25/24 1:00        21.1  90.9      22.0     19.6    point  2605740
+354  12/25/24 2:00        21.5  90.5      22.3     19.8    point  2605740
+355  12/25/24 3:00        21.5  96.8      22.4     20.9    point  2605740
+356  12/25/24 4:00        21.0  96.2      22.0     20.4    point  2605740
+357  12/25/24 5:00        20.2  95.5      20.9     19.4    point  2605740
+358  12/25/24 6:00        19.8  97.9      20.6     19.4    point  2605740
+359  12/25/24 7:00        20.5  98.4      21.4     20.2    point  2605740
+360  12/25/24 8:00        26.2  99.0      31.4     26.0    point  2605740
+361  12/25/24 9:00        29.8  92.2      41.0     28.4    point  2605740
+362 12/25/24 10:00        39.3  92.6      88.6     37.9    point  2605740
+363 12/25/24 11:00        48.1  31.6      63.4     26.9    point  2605740
+364 12/25/24 12:00        47.3  32.1      62.0     26.5    point  2605740
+365 12/25/24 13:00        53.0  23.8      66.6     26.1    point  2605740
+366 12/25/24 14:00        53.8  22.1      66.4     25.6    point  2605740
+367 12/25/24 15:00        42.7  40.4      57.0     26.4    point  2605740
+368 12/25/24 16:00        43.3  26.4      48.7     19.8    point  2605740
+369 12/25/24 17:00        35.3  33.2      37.1     16.7    point  2605740
+370 12/25/24 18:00        32.0  36.5      32.6     15.3    point  2605740
+371 12/25/24 19:00        26.1  53.1      26.1     15.8    point  2605740
+372 12/25/24 20:00        24.4  70.2      24.9     18.6    point  2605740
+373 12/25/24 21:00        22.8  73.3      23.3     17.7    point  2605740
+374 12/25/24 22:00        21.4  85.7      22.1     18.9    point  2605740
+375 12/25/24 23:00        22.1  89.5      23.2     20.3    point  2605740
+376  12/26/24 0:00        22.2  73.9      22.6     17.3    point  2605740
+377  12/26/24 1:00        20.8  96.5      21.7     20.2    point  2605740
+378  12/26/24 2:00        20.4  97.4      21.3     20.0    point  2605740
+379  12/26/24 3:00        20.1  97.3      21.0     19.7    point  2605740
+380  12/26/24 4:00        20.2  97.9      21.2     19.9    point  2605740
+381  12/26/24 5:00        20.5  98.2      21.5     20.2    point  2605740
+382  12/26/24 6:00        20.0  98.2      20.9     19.7    point  2605740
+383  12/26/24 7:00        21.0  98.7      22.0     20.8    point  2605740
+384  12/26/24 8:00        22.7  99.4      24.5     22.6    point  2605740
+385  12/26/24 9:00        25.3  98.2      28.9     25.0    point  2605740
+386 12/26/24 10:00        34.8  95.9      64.4     34.1    point  2605740
+387 12/26/24 11:00        47.0  32.6      61.6     26.5    point  2605740
+388 12/26/24 12:00        45.7  31.8      57.5     24.9    point  2605740
+389 12/26/24 13:00        50.0  18.3      55.1     19.4    point  2605740
+390 12/26/24 14:00        34.0  46.4      38.5     20.9    point  2605740
+391 12/26/24 15:00        25.3  63.4      25.6     17.8    point  2605740
+392 12/26/24 16:00        24.1  97.5      26.5     23.7    point  2605740
+393 12/26/24 17:00        25.9  98.7      30.5     25.7    point  2605740
+394 12/26/24 18:00        24.9  99.0      27.7     24.7    point  2605740
+395 12/26/24 19:00        22.4  98.3      24.0     22.1    point  2605740
+396 12/26/24 20:00        21.8  97.3      23.0     21.4    point  2605740
+397 12/26/24 21:00        21.8  97.3      23.0     21.4    point  2605740
+398 12/26/24 22:00        20.5  97.0      21.3     20.0    point  2605740
+399 12/26/24 23:00        19.9  97.5      20.8     19.5    point  2605740
+400  12/27/24 0:00        20.3  98.2      21.3     20.0    point  2605740
+401  12/27/24 1:00        20.6  98.5      21.5     20.4    point  2605740
+402  12/27/24 2:00        19.2  98.2      20.0     18.9    point  2605740
+403  12/27/24 3:00        18.4  98.1      19.2     18.1    point  2605740
+404  12/27/24 4:00        18.5  98.5      19.3     18.3    point  2605740
+405  12/27/24 5:00        18.9  98.8      19.6     18.7    point  2605740
+406  12/27/24 6:00        18.5  98.7      19.3     18.3    point  2605740
+407  12/27/24 7:00        20.8  99.6      21.8     20.7    point  2605740
+408  12/27/24 8:00        23.8 100.0      26.2     23.8    point  2605740
+409  12/27/24 9:00        28.4  98.7      37.6     28.2    point  2605740
+410 12/27/24 10:00        36.7  93.3      73.3     35.4    point  2605740
+411 12/27/24 11:00        40.6  42.6      52.6     25.4    point  2605740
+412 12/27/24 12:00        38.6  39.1      45.9     22.2    point  2605740
+413 12/27/24 13:00        54.0  22.7      67.9     26.3    point  2605740
+414 12/27/24 14:00        41.8  27.0      46.2     18.9    point  2605740
+415 12/27/24 15:00        31.3  74.8      40.5     26.3    point  2605740
+416 12/27/24 16:00        25.6  95.9      29.4     24.9    point  2605740
+417 12/27/24 17:00        26.0  97.4      30.6     25.5    point  2605740
+418 12/27/24 18:00        26.2  99.2      31.4     26.1    point  2605740
+419 12/27/24 19:00        24.7  98.9      27.3     24.5    point  2605740
+420 12/27/24 20:00        22.1  97.6      23.5     21.7    point  2605740
+421 12/27/24 21:00        20.9  97.6      22.0     20.5    point  2605740
+422 12/27/24 22:00        21.5  98.3      22.5     21.2    point  2605740
+423 12/27/24 23:00        21.6  98.5      22.7     21.3    point  2605740
+424  12/28/24 0:00        21.8  98.9      23.1     21.6    point  2605740
+425  12/28/24 1:00        21.3  98.7      22.4     21.1    point  2605740
+426  12/28/24 2:00        21.5  99.2      22.5     21.4    point  2605740
+427  12/28/24 3:00        20.4  98.9      21.4     20.2    point  2605740
+428  12/28/24 4:00        20.9  99.3      21.9     20.7    point  2605740
+429  12/28/24 5:00        20.9  99.4      21.9     20.8    point  2605740
+430  12/28/24 6:00        21.0  99.7      22.1     21.0    point  2605740
+431  12/28/24 7:00        21.9 100.0      23.1     21.9    point  2605740
+432  12/28/24 8:00        25.3 100.0      28.9     25.3    point  2605740
+433  12/28/24 9:00        24.1 100.0      26.6     24.1    point  2605740
+434 12/28/24 10:00        28.2 100.0      36.8     28.2    point  2605740
+435 12/28/24 11:00        38.7  94.5      86.0     37.6    point  2605740
+436 12/28/24 12:00        46.8  25.8      55.3     22.4    point  2605740
+437 12/28/24 13:00        52.4  15.0      55.8     18.1    point  2605740
+438 12/28/24 14:00        58.0  13.2      63.1     20.4    point  2605740
+439 12/28/24 15:00        47.4  13.7      47.6     12.8    point  2605740
+440 12/28/24 16:00        37.6  17.5      36.1      8.9    point  2605740
+441 12/28/24 17:00        33.6  20.9      31.8      8.2    point  2605740
+442 12/28/24 18:00        31.4  22.8      29.5      7.7    point  2605740
+443 12/28/24 19:00        27.5  31.1      25.8      8.9    point  2605740
+444 12/28/24 20:00        23.8  36.9      22.5      8.2    point  2605740
+445 12/28/24 21:00        23.4  34.8      22.0      7.0    point  2605740
+446 12/28/24 22:00        21.7  32.4      20.5      4.5    point  2605740
+447 12/28/24 23:00        21.6  30.4      20.3      3.4    point  2605740
+448  12/29/24 0:00        20.6  29.9      18.7      2.3    point  2605740
+449  12/29/24 1:00        21.6  28.1      20.1      2.3    point  2605740
+450  12/29/24 2:00        20.8  29.4      19.1      2.3    point  2605740
+451  12/29/24 3:00        20.8  28.0      19.0      1.7    point  2605740
+452  12/29/24 4:00        20.2  30.3      18.2      2.2    point  2605740
+453  12/29/24 5:00        18.9  43.2      17.0      6.2    point  2605740
+454  12/29/24 6:00        19.3  38.4      17.2      4.7    point  2605740
+455  12/29/24 7:00        19.8  38.4      18.1      5.3    point  2605740
+456  12/29/24 8:00        20.1  55.5      19.3     11.0    point  2605740
+457  12/29/24 9:00        22.5  24.4      20.7      1.2    point  2605740
+458 12/29/24 10:00        25.4  22.4      23.0      2.4    point  2605740
+459 12/29/24 11:00        34.5  15.4      31.9      4.6    point  2605740
+460 12/29/24 12:00        40.5  11.3      38.0      4.8    point  2605740
+461 12/29/24 13:00        56.4   7.4      55.1     10.2    point  2605740
+462 12/29/24 14:00        45.7   8.8      43.2      5.0    point  2605740
+463 12/29/24 15:00        41.6  10.2      39.1      4.2    point  2605740
+464 12/29/24 16:00        39.6  11.7      37.1      4.5    point  2605740
+465 12/29/24 17:00        37.0  12.2      34.2      3.1    point  2605740
+466 12/29/24 18:00        35.2  11.3      32.0      0.6    point  2605740
+467 12/29/24 19:00        28.7  14.6      25.7     -0.9    point  2605740
+468 12/29/24 20:00        23.1  23.2      21.1      1.0    point  2605740
+469 12/29/24 21:00        22.0  26.4      20.4      1.8    point  2605740
+470 12/29/24 22:00        20.9  29.7      19.3      2.5    point  2605740
+471 12/29/24 23:00        20.7  31.0      19.1      3.0    point  2605740
+472  12/30/24 0:00        19.6  32.7      17.4      2.8    point  2605740
+473  12/30/24 1:00        19.3  32.1      16.9      2.2    point  2605740
+474  12/30/24 2:00        19.2  32.1      16.7      2.2    point  2605740
+475  12/30/24 3:00        18.5  33.5      15.8      2.1    point  2605740
+476  12/30/24 4:00        17.8  34.3      15.1      1.9    point  2605740
+477  12/30/24 5:00        18.0  33.7      15.4      1.8    point  2605740
+478  12/30/24 6:00        19.2  31.3      16.7      1.8    point  2605740
+479  12/30/24 7:00        20.2  31.8      18.2      2.9    point  2605740
+480  12/30/24 8:00        23.9  27.3      21.9      3.9    point  2605740
+481  12/30/24 9:00        37.4  16.9      35.6      8.1    point  2605740
+482 12/30/24 10:00        40.9  13.9      39.1      8.0    point  2605740
+483 12/30/24 11:00        44.2  12.1      42.6      8.5    point  2605740
+484 12/30/24 12:00        58.6   8.7      59.0     14.2    point  2605740
+485 12/30/24 13:00        65.4   7.9      64.3     17.6    point  2605740
+486 12/30/24 14:00        51.6  11.8      52.3     13.8    point  2605740
+487 12/30/24 15:00        46.1  14.4      46.2     12.6    point  2605740
+488 12/30/24 16:00        42.9  16.4      42.8     12.1    point  2605740
+489 12/30/24 17:00        42.7  17.7      43.3     13.1    point  2605740
+490 12/30/24 18:00        35.8  20.6      34.7      9.8    point  2605740
+491 12/30/24 19:00        33.5  15.0      30.8      3.4    point  2605740
+492 12/30/24 20:00        29.0  19.6      26.5      3.5    point  2605740
+493 12/30/24 21:00        27.4  24.1      25.1      5.1    point  2605740
+494 12/30/24 22:00        26.3  26.6      24.2      5.6    point  2605740
+495 12/30/24 23:00        23.8  30.9      22.1      5.6    point  2605740
+496  12/31/24 0:00        22.8  33.8      21.4      6.1    point  2605740
+497  12/31/24 1:00        20.5  37.9      18.9      5.6    point  2605740
+498  12/31/24 2:00        21.7  41.6      20.8      8.1    point  2605740
+499  12/31/24 3:00        22.4  34.7      21.1      6.1    point  2605740
+500  12/31/24 4:00        20.9  36.4      19.6      5.4    point  2605740
+501  12/31/24 5:00        22.0  34.2      20.7      5.5    point  2605740
+502  12/31/24 6:00        21.9  33.0      20.6      4.9    point  2605740
+503  12/31/24 7:00        22.8  32.3      21.3      5.4    point  2605740
+504  12/31/24 8:00        25.2  28.5      23.2      5.7    point  2605740
+505  12/31/24 9:00        32.5  22.9      30.8      8.6    point  2605740
+506 12/31/24 10:00        36.2  18.5      34.7      8.5    point  2605740
+507 12/31/24 11:00        40.6  15.1      39.1      9.0    point  2605740
+508 12/31/24 12:00        57.8   9.1      58.4     14.3    point  2605740
+509 12/31/24 13:00        61.5   7.7      61.9     14.4    point  2605740
+510 12/31/24 14:00        64.6   7.0      63.0     15.2    point  2605740
+511 12/31/24 15:00        62.9   7.2      62.8     14.4    point  2605740
+512 12/31/24 16:00        50.4   9.0      48.9      8.8    point  2605740
+513 12/31/24 17:00        41.9  12.9      40.3      7.8    point  2605740
+514 12/31/24 18:00        39.3  13.9      37.2      6.8    point  2605740
+515 12/31/24 19:00        34.8  16.3      32.3      5.6    point  2605740
+516 12/31/24 20:00        29.5  19.7      27.1      4.0    point  2605740
+517 12/31/24 21:00        27.2  22.4      24.9      3.9    point  2605740
+518 12/31/24 22:00        26.0  26.7      24.0      5.4    point  2605740
+519 12/31/24 23:00        24.7  27.1      22.7      4.5    point  2605740
+520    1/1/25 0:00        22.8  27.5      21.0      3.1    point  2605740
+521    1/1/25 1:00        23.9  25.3      21.8      2.8    point  2605740
+522    1/1/25 2:00        23.2  26.6      21.3      3.0    point  2605740
+523    1/1/25 3:00        22.3  27.8      20.7      2.8    point  2605740
+524    1/1/25 4:00        23.1  32.0      21.5      5.5    point  2605740
+525    1/1/25 5:00        21.8  34.2      20.6      5.4    point  2605740
+526    1/1/25 6:00        19.0  41.8      17.1      5.8    point  2605740
+527    1/1/25 7:00        21.6  44.7      20.9      9.0    point  2605740
+528    1/1/25 8:00        30.0  23.6      27.9      7.0    point  2605740
+529    1/1/25 9:00        39.1  16.2      37.6      8.9    point  2605740
+530   1/1/25 10:00        48.1  11.5      47.6     10.8    point  2605740
+531   1/1/25 11:00        59.2   9.7      61.1     16.4    point  2605740
+532   1/1/25 12:00        58.6   8.8      59.3     14.5    point  2605740
+533   1/1/25 13:00        65.3   8.1      64.4     17.8    point  2605740
+534   1/1/25 14:00        69.8   6.6      62.3     17.7    point  2605740
+535   1/1/25 15:00        56.0   9.6      56.5     13.8    point  2605740
+536   1/1/25 16:00        49.8  12.2      50.2     12.9    point  2605740
+537   1/1/25 17:00        44.0  15.5      43.8     12.0    point  2605740
+538   1/1/25 18:00        37.9  19.9      37.3     11.0    point  2605740
+539   1/1/25 19:00        34.0  22.5      32.8      9.7    point  2605740
+540   1/1/25 20:00        29.5  29.7      27.9      9.9    point  2605740
+541   1/1/25 21:00        27.9  26.0      25.7      6.6    point  2605740
+542   1/1/25 22:00        27.3  30.3      25.5      8.4    point  2605740
+543   1/1/25 23:00        24.7  33.1      22.9      7.4    point  2605740
+544    1/2/25 0:00        24.5  35.5      23.0      8.2    point  2605740
+545    1/2/25 1:00        24.2  36.0      22.7      8.2    point  2605740
+546    1/2/25 2:00        21.7  35.1      20.6      5.7    point  2605740
+547    1/2/25 3:00        20.5  38.2      19.1      5.8    point  2605740
+548    1/2/25 4:00        20.9  36.4      19.4      5.4    point  2605740
+549    1/2/25 5:00        21.4  34.8      20.2      5.2    point  2605740
+550    1/2/25 6:00        20.3  33.6      18.4      3.7    point  2605740
+551    1/2/25 7:00        21.4  33.2      20.2      4.6    point  2605740
+552    1/2/25 8:00        30.1  21.4      27.9      5.7    point  2605740
+553    1/2/25 9:00        36.3  20.8      35.4     10.4    point  2605740
+554   1/2/25 10:00        40.3  25.5      43.1     16.8    point  2605740
+555   1/2/25 11:00        45.7  24.7      52.6     20.8    point  2605740
+556   1/2/25 12:00        54.1  15.6      59.3     20.1    point  2605740
+557   1/2/25 13:00        57.6  12.9      62.0     19.7    point  2605740
+558   1/2/25 14:00        40.8  23.4      42.9     15.8    point  2605740
+559   1/2/25 15:00        37.1  39.4      42.7     21.0    point  2605740
+560   1/2/25 16:00        23.3  95.9      25.0     22.6    point  2605740
+561   1/2/25 17:00        25.1  97.4      28.3     24.7    point  2605740
+562   1/2/25 18:00        25.3  98.6      28.7     25.0    point  2605740
+563   1/2/25 19:00        23.6  98.6      25.7     23.4    point  2605740
+564   1/2/25 20:00        22.3  98.1      23.8     22.0    point  2605740
+565   1/2/25 21:00        22.0  98.4      23.2     21.7    point  2605740
+566   1/2/25 22:00        21.6  98.6      22.7     21.4    point  2605740
+567   1/2/25 23:00        22.0  98.9      23.4     21.9    point  2605740
+568    1/3/25 0:00        21.1  98.8      22.1     20.9    point  2605740
+569    1/3/25 1:00        20.1  99.3      21.1     20.0    point  2605740
+570    1/3/25 2:00        20.3  99.4      21.3     20.3    point  2605740
+571    1/3/25 3:00        20.5  99.6      21.4     20.4    point  2605740
+572    1/3/25 4:00        20.5  99.8      21.4     20.4    point  2605740
+573    1/3/25 5:00        20.4  99.9      21.3     20.4    point  2605740
+574    1/3/25 6:00        20.1  99.9      21.0     20.1    point  2605740
+575    1/3/25 7:00        20.2 100.0      21.2     20.2    point  2605740
+576    1/3/25 8:00        21.1 100.0      22.1     21.1    point  2605740
+577    1/3/25 9:00        22.4 100.0      23.9     22.4    point  2605740
+578   1/3/25 10:00        26.0 100.0      31.0     26.0    point  2605740
+579   1/3/25 11:00        28.8  99.2      38.9     28.6    point  2605740
+580   1/3/25 12:00        29.9  97.8      42.7     29.5    point  2605740
+581   1/3/25 13:00        35.9  95.3      70.3     35.0    point  2605740
+582   1/3/25 14:00        36.1  48.2      44.2     23.4    point  2605740
+583   1/3/25 15:00        28.5  67.0      31.6     21.8    point  2605740
+584   1/3/25 16:00        24.4  97.1      26.7     23.9    point  2605740
+585   1/3/25 17:00        23.2  97.7      25.1     22.9    point  2605740
+586   1/3/25 18:00        22.1  98.2      23.4     21.8    point  2605740
+587   1/3/25 19:00        20.5  98.4      21.5     20.2    point  2605740
+588   1/3/25 20:00        20.2  98.9      21.1     20.0    point  2605740
+589   1/3/25 21:00        19.3  98.8      20.1     19.1    point  2605740
+590   1/3/25 22:00        18.3  99.0      19.1     18.1    point  2605740
+591   1/3/25 23:00        18.4  99.6      19.2     18.3    point  2605740
+592    1/4/25 0:00        18.2  99.9      19.0     18.2    point  2605740
+593    1/4/25 1:00        18.4 100.0      19.3     18.4    point  2605740
+594    1/4/25 2:00        17.8 100.0      18.5     17.8    point  2605740
+595    1/4/25 3:00        17.5 100.0      18.2     17.5    point  2605740
+596    1/4/25 4:00        17.4 100.0      18.1     17.4    point  2605740
+597    1/4/25 5:00        17.5 100.0      18.3     17.5    point  2605740
+598    1/4/25 6:00        17.2 100.0      18.0     17.2    point  2605740
+599    1/4/25 7:00        18.9 100.0      19.7     18.9    point  2605740
+600    1/4/25 8:00        26.9 100.0      33.4     26.9    point  2605740
+601    1/4/25 9:00        36.7  99.0      77.8     36.5    point  2605740
+602    1/4/25 9:00        37.7    NA        NA       NA    point  2605740
+603   1/4/25 10:00        55.0  17.7      63.3     22.8    point  2605740
+604   1/4/25 10:00        40.6  25.0      43.4     16.7    point  2605740
+605   1/4/25 11:00        34.6  34.6      36.2     16.7    point  2605740
+606   1/4/25 12:00        19.9  61.3      19.2     12.2    point  2605740
+607   1/4/25 13:00        18.9  64.0      18.1     12.0    point  2605740
+608   1/4/25 14:00        18.7  64.6      17.8     11.9    point  2605740
+609   1/4/25 15:00        22.5  66.0      22.6     15.8    point  2605740
+610   1/4/25 16:00        30.8  44.7      32.1     17.4    point  2605740
+611   1/4/25 17:00        36.4  24.0      36.2     12.5    point  2605740
+612   1/4/25 18:00        50.0  16.3      53.3     17.6    point  2605740
+613   1/4/25 18:00        48.6  16.3      51.3     16.5    point  2605740
+614   1/4/25 19:00        47.7  12.9      47.6     12.2    point  2605740
+615   1/4/25 20:00        57.6  10.9      60.1     17.0    point  2605740
+616   1/4/25 21:00        60.6   8.7      61.8     15.8    point  2605740
+617   1/4/25 22:00        55.9   9.2      56.1     13.1    point  2605740
+618   1/4/25 23:00        44.5  14.6      44.2     11.6    point  2605740
+619    1/5/25 0:00        40.0  18.4      39.6     11.4    point  2605740
+620    1/5/25 1:00        34.0  24.5      33.2     11.0    point  2605740
+621    1/5/25 2:00        29.5  30.0      28.1     10.1    point  2605740
+622    1/5/25 3:00        26.1  38.8      24.9     11.0    point  2605740
+623    1/5/25 4:00        25.3  46.6      24.4     13.0    point  2605740
+624    1/5/25 5:00        24.2  51.3      23.5     13.5    point  2605740
+625    1/5/25 6:00        23.8  55.0      23.4     14.2    point  2605740
+626    1/5/25 7:00        23.2  54.6      22.8     13.5    point  2605740
+627    1/5/25 8:00        22.8  54.5      22.4     13.2    point  2605740
+628    1/5/25 9:00        21.1  67.0      21.1     14.7    point  2605740
+629   1/5/25 10:00        20.5  64.9      20.3     13.7    point  2605740
+630   1/5/25 11:00        18.7  65.0      17.7     12.0    point  2605740
+631   1/5/25 12:00        19.5  61.6      18.7     11.9    point  2605740
+632   1/5/25 13:00        19.5  64.5      18.8     12.6    point  2605740
+633   1/5/25 14:00        20.4  63.7      20.1     13.3    point  2605740
+634   1/5/25 15:00        23.3  57.2      23.0     14.4    point  2605740
+635   1/5/25 16:00        30.4  43.9      31.2     16.7    point  2605740
+636   1/5/25 17:00        38.9  27.9      41.5     17.0    point  2605740
+637   1/5/25 18:00        54.0  14.9      58.4     19.3    point  2605740
+638   1/5/25 19:00        59.5  14.5      66.8     23.0    point  2605740
+639   1/5/25 20:00        62.6  12.5      69.5     22.9    point  2605740
+640   1/5/25 21:00        63.5  11.4      69.0     22.1    point  2605740
+641   1/5/25 22:00        63.2  12.2      70.2     23.1    point  2605740
+642   1/5/25 23:00        48.3  17.9      52.1     17.8    point  2605740
+643    1/6/25 0:00        41.3  20.6      42.4     14.3    point  2605740
+644    1/6/25 1:00        36.8  25.1      37.2     13.6    point  2605740
+645    1/6/25 2:00        31.0  32.5      30.3     12.7    point  2605740
+646    1/6/25 3:00        28.1  36.0      26.9     11.6    point  2605740
+647    1/6/25 4:00        26.3  39.2      25.2     11.3    point  2605740
+648    1/6/25 5:00        25.4  42.7      24.4     11.8    point  2605740
+649    1/6/25 6:00        24.3  47.1      23.5     12.3    point  2605740
+650    1/6/25 7:00        23.7  48.1      23.0     12.1    point  2605740
+651    1/6/25 8:00        22.3  47.1      21.6     10.5    point  2605740
+652    1/6/25 9:00        22.0  46.6      21.4     10.1    point  2605740
+653   1/6/25 10:00        21.6  48.0      21.1     10.1    point  2605740
+654   1/6/25 11:00        20.5  51.1      19.7     10.1    point  2605740
+655   1/6/25 12:00        21.2  50.9      20.6     10.6    point  2605740
+656   1/6/25 13:00        20.8  50.7      20.1     10.2    point  2605740
+657   1/6/25 14:00        20.7  55.0      20.0     11.3    point  2605740
+658   1/6/25 15:00        20.4  95.5      21.2     19.6    point  2605740
+659   1/6/25 16:00        24.5  98.8      27.1     24.3    point  2605740
+660   1/6/25 17:00        39.5  95.2      92.7     38.6    point  2605740
+661   1/6/25 18:00        51.4  23.3      62.7     24.5    point  2605740
+662   1/6/25 19:00        54.2  20.8      65.8     24.9    point  2605740
+663   1/6/25 20:00        54.4  18.7      63.8     23.3    point  2605740
+664   1/6/25 21:00        55.2  17.4      63.6     22.8    point  2605740
+665   1/6/25 22:00        51.3  17.9      57.1     20.1    point  2605740
+666   1/6/25 23:00        39.1  26.6      41.5     16.5    point  2605740
+667    1/7/25 0:00        33.7  29.2      33.5     13.3    point  2605740
+668    1/7/25 1:00        34.2  30.2      34.4     14.2    point  2605740
+669    1/7/25 2:00        25.4  40.7      24.1     11.1    point  2605740
+670    1/7/25 3:00        22.8  44.4      21.9     10.0    point  2605740
+671    1/7/25 4:00        21.3  47.9      20.8      9.9    point  2605740
+672    1/7/25 5:00        20.4  51.7      19.4     10.1    point  2605740
+673    1/7/25 6:00        19.6  54.3      18.4     10.1    point  2605740
+674    1/7/25 7:00        18.3  56.1      16.8      9.4    point  2605740
+675    1/7/25 8:00        17.5  58.9      16.2      9.4    point  2605740
+676    1/7/25 9:00        16.9  61.9      15.7      9.6    point  2605740
+677   1/7/25 10:00        16.6  64.2      15.6      9.8    point  2605740
+678   1/7/25 11:00        15.9  66.9      15.0      9.8    point  2605740
+679   1/7/25 12:00        16.4  65.8      15.5     10.0    point  2605740
+680   1/7/25 13:00        15.4  68.8      14.6      9.7    point  2605740
+681   1/7/25 14:00        18.9  63.4      17.9     11.8    point  2605740
+682   1/7/25 15:00        23.2  46.9      22.4     11.2    point  2605740
+683   1/7/25 16:00        33.0  37.6      34.6     16.7    point  2605740
+684   1/7/25 17:00        32.5  30.0      31.8     12.6    point  2605740
+685   1/7/25 18:00        47.2  19.1      51.2     17.9    point  2605740
+686   1/7/25 19:00        57.1  13.8      62.2     20.5    point  2605740
+687   1/7/25 20:00        61.2  12.2      66.9     21.5    point  2605740
+688   1/7/25 21:00        52.9  12.4      54.6     15.5    point  2605740
+689   1/7/25 22:00        54.6  12.1      56.8     16.4    point  2605740
+690   1/7/25 23:00        40.5  20.1      41.2     13.3    point  2605740
+691    1/8/25 0:00        39.2  21.0      39.6     12.9    point  2605740
+692    1/8/25 1:00        36.9  22.6      36.7     12.1    point  2605740
+693    1/8/25 2:00        27.5  29.6      25.5      8.2    point  2605740
+694    1/8/25 3:00        24.5  29.7      22.5      5.6    point  2605740
+695    1/8/25 4:00        22.7  33.4      21.2      5.8    point  2605740
+696    1/8/25 5:00        21.1  38.8      19.9      6.5    point  2605740
+697    1/8/25 6:00        20.2  43.5      18.8      7.4    point  2605740
+698    1/8/25 7:00        19.0  51.7      17.6      8.9    point  2605740
+699    1/8/25 8:00        18.5  51.8      16.7      8.4    point  2605740
+700    1/8/25 9:00        18.0  47.5      16.1      6.7    point  2605740
+701   1/8/25 10:00        18.4  42.6      16.2      5.5    point  2605740
+702   1/8/25 11:00        16.5  54.6      15.0      7.3    point  2605740
+703   1/8/25 12:00        15.3  64.2      14.3      8.6    point  2605740
+704   1/8/25 13:00        14.2  70.9      13.5      9.0    point  2605740
+705   1/8/25 14:00        20.0  63.4      19.5     12.9    point  2605740
+706   1/8/25 15:00        33.2  34.6      34.1     15.5    point  2605740
+707   1/8/25 16:00        41.8  24.5      45.2     17.4    point  2605740
+708   1/8/25 17:00        54.3  13.1      57.2     17.4    point  2605740
+709   1/8/25 18:00        62.2  11.7      68.1     21.6    point  2605740
+710   1/8/25 19:00        66.7  10.6      68.0     23.4    point  2605740
+711   1/8/25 20:00        66.7   8.4      65.0     19.5    point  2605740
+712   1/8/25 21:00        66.7   8.1      64.4     18.8    point  2605740
+713   1/8/25 22:00        63.2   7.9      64.1     16.0    point  2605740
+714   1/8/25 23:00        50.0  11.0      49.8     11.5    point  2605740
+715    1/9/25 0:00        40.9  15.8      39.7      9.9    point  2605740
+716    1/9/25 1:00        32.6  20.5      30.5      7.0    point  2605740
+717    1/9/25 2:00        30.0  24.3      28.1      7.5    point  2605740
+718    1/9/25 3:00        26.1  23.7      23.8      3.8    point  2605740
+719    1/9/25 4:00        24.3  28.7      22.4      5.0    point  2605740
+720    1/9/25 5:00        22.8  32.4      21.3      5.4    point  2605740
+721    1/9/25 6:00        20.9  31.4      19.2      3.3    point  2605740
+722    1/9/25 7:00        20.8  31.6      19.1      3.3    point  2605740
+723    1/9/25 8:00        19.7  35.4      17.7      4.0    point  2605740
+724    1/9/25 9:00        20.5  34.3      18.7      4.2    point  2605740
+725   1/9/25 10:00        20.2  35.4      18.5      4.4    point  2605740
+726   1/9/25 11:00        19.9  31.1      17.8      2.3    point  2605740
+727   1/9/25 12:00        19.7  26.4      17.2     -0.1    point  2605740
+728   1/9/25 13:00        19.5  26.4      16.9     -0.3    point  2605740
+729   1/9/25 14:00        20.4  23.1      18.2     -1.4    point  2605740
+730   1/9/25 15:00        26.0  18.2      23.3      0.0    point  2605740
+731   1/9/25 16:00        32.4  14.5      29.5      2.0    point  2605740
+732   1/9/25 17:00        35.5  12.9      32.6      2.7    point  2605740
+733   1/9/25 18:00        38.7  13.8      36.4      6.2    point  2605740
+734   1/9/25 19:00        47.2  11.3      46.2      9.8    point  2605740
+735   1/9/25 20:00        52.3   7.8      50.4      8.1    point  2605740
+736   1/9/25 21:00        67.9   7.1      63.0     17.6    point  2605740
+737   1/9/25 22:00        49.3  10.0      48.1      9.5    point  2605740
+738   1/9/25 23:00        40.7  12.7      38.5      6.5    point  2605740
+739   1/10/25 0:00        39.4  14.4      37.4      7.3    point  2605740
+740   1/10/25 1:00        32.3  16.3      29.7      3.6    point  2605740
+741   1/10/25 2:00        27.8  19.0      25.2      2.1    point  2605740
+742   1/10/25 3:00        25.4  22.5      23.1      2.5    point  2605740
+743   1/10/25 4:00        26.1  24.6      23.9      4.3    point  2605740
+744   1/10/25 5:00        25.9  28.0      23.9      6.0    point  2605740
+745   1/10/25 6:00        25.3  33.6      23.6      8.1    point  2605740
+746   1/10/25 7:00        24.2  34.0      22.6      7.4    point  2605740
+747   1/10/25 8:00        22.7  34.4      21.4      6.2    point  2605740
+748   1/10/25 9:00        22.2  33.8      20.9      5.5    point  2605740
+749  1/10/25 10:00        21.5  32.9      20.2      4.5    point  2605740
+750  1/10/25 11:00        21.3  30.0      19.7      3.0    point  2605740
+751  1/10/25 12:00        20.2  29.8      18.1      2.0    point  2605740
+752  1/10/25 13:00        20.0  30.8      18.0      2.3    point  2605740
+753  1/10/25 14:00        22.6  29.0      21.0      3.7    point  2605740
+754  1/10/25 15:00        28.2  24.1      25.9      5.7    point  2605740
+755  1/10/25 16:00        44.1  15.9      44.3     12.6    point  2605740
+756  1/10/25 17:00        57.3  11.3      60.0     17.4    point  2605740
+757  1/10/25 18:00        64.6  10.1      67.3     21.0    point  2605740
+758  1/10/25 19:00        68.2   8.9      65.5     21.5    point  2605740
+759  1/10/25 20:00        70.3   8.0      64.4     21.3    point  2605740
+760  1/10/25 21:00        70.0   6.9      62.7     18.6    point  2605740
+761  1/10/25 22:00        67.2   7.3      63.4     17.7    point  2605740
+762  1/10/25 23:00        49.8  10.6      49.2     10.8    point  2605740
+763   1/11/25 0:00        38.9  15.5      37.2      8.1    point  2605740
+764   1/11/25 1:00        33.7  24.0      32.6     10.4    point  2605740
+765   1/11/25 2:00        31.0  28.9      29.6     10.8    point  2605740
+766   1/11/25 3:00        29.8  21.7      27.4      5.6    point  2605740
+767   1/11/25 4:00        27.9  23.0      25.6      4.9    point  2605740
+768   1/11/25 5:00        26.7  29.1      24.7      7.2    point  2605740
+769   1/11/25 6:00        26.1  30.2      24.3      7.3    point  2605740
+770   1/11/25 7:00        25.0  32.7      23.3      7.5    point  2605740
+771   1/11/25 8:00        23.6  34.3      22.2      7.0    point  2605740
+772   1/11/25 9:00        23.2  34.6      21.8      6.7    point  2605740
+773  1/11/25 10:00        22.6  33.3      21.2      5.7    point  2605740
+774  1/11/25 11:00        21.5  35.3      20.3      5.5    point  2605740
+775  1/11/25 12:00        20.8  37.3      19.5      5.7    point  2605740
+776  1/11/25 13:00        19.8  41.5      18.1      6.3    point  2605740
+777  1/11/25 14:00        22.9  38.6      21.7      8.0    point  2605740
+778  1/11/25 15:00        34.4  25.6      33.9     11.9    point  2605740
+779  1/11/25 16:00        43.8  18.6      45.3     14.7    point  2605740
+780  1/11/25 17:00        57.3  11.9      60.8     18.2    point  2605740
+781  1/11/25 18:00        65.7  10.2      67.5     22.0    point  2605740
+782  1/11/25 19:00        69.6   8.9      65.7     22.6    point  2605740
+783  1/11/25 20:00        71.9   8.1      64.5     22.7    point  2605740
+784  1/11/25 21:00        74.1   7.7      64.0     23.4    point  2605740
+785  1/11/25 22:00        65.0   9.8      66.8     20.7    point  2605740
+786  1/11/25 23:00        46.5  13.4      46.3     11.9    point  2605740
+787   1/12/25 0:00        42.1  16.8      41.9     11.8    point  2605740
+788   1/12/25 1:00        35.3  20.8      34.0      9.5    point  2605740
+789   1/12/25 2:00        30.7  29.3      29.3     10.8    point  2605740
+790   1/12/25 3:00        26.2  37.0      24.8     10.3    point  2605740
+791   1/12/25 4:00        27.3  26.5      25.3      6.4    point  2605740
+792   1/12/25 5:00        25.0  31.6      23.2      7.0    point  2605740
+793   1/12/25 6:00        21.5  37.5      20.6      6.4    point  2605740
+794   1/12/25 7:00        18.2  44.7      16.1      6.0    point  2605740
+795   1/12/25 8:00        17.6  48.5      15.7      6.6    point  2605740
+796   1/12/25 9:00        18.8  46.4      17.0      7.1    point  2605740
+797  1/12/25 10:00        17.0  45.3      15.0      5.1    point  2605740
+798  1/12/25 11:00        14.7  49.6      13.1      4.3    point  2605740
+799  1/12/25 12:00        13.4  54.4      12.2      4.4    point  2605740
+800  1/12/25 13:00        13.6  55.8      12.3      4.9    point  2605740
+801  1/12/25 14:00        18.2  53.6      16.6      8.7    point  2605740
+802  1/12/25 15:00        33.3  29.3      32.9     13.0    point  2605740
+803  1/12/25 16:00        45.9  16.0      47.0     14.1    point  2605740
+804  1/12/25 17:00        55.6  10.3      56.7     14.7    point  2605740
+805  1/12/25 18:00        60.2   6.2      58.3     10.3    point  2605740
+806  1/12/25 19:00        68.2   5.1      60.2     12.6    point  2605740
+807  1/12/25 20:00        71.3   4.6      59.7     13.3    point  2605740
+808  1/12/25 21:00        69.8   4.5      59.5     12.0    point  2605740
+809  1/12/25 22:00        68.9   5.0      60.1     12.8    point  2605740
+810  1/12/25 23:00        47.1   5.9      43.3      0.4    point  2605740
+811   1/13/25 0:00        40.0   8.3      36.7      0.0    point  2605740
+812   1/13/25 1:00        38.3   9.5      35.2      0.6    point  2605740
+813   1/13/25 2:00        30.7  10.2      27.4     -4.2    point  2605740
+814   1/13/25 3:00        27.9  12.2      24.9     -3.9    point  2605740
+815   1/13/25 4:00        26.8  17.6      24.0      0.1    point  2605740
+816   1/13/25 5:00        24.8  26.7      22.8      4.4    point  2605740
+817   1/13/25 6:00        23.2  33.3      21.7      6.2    point  2605740
+818   1/13/25 7:00        21.9  34.4      20.7      5.5    point  2605740
+819   1/13/25 8:00        20.3  36.4      18.7      4.9    point  2605740
+820   1/13/25 9:00        19.0  35.2      16.8      3.3    point  2605740
+821  1/13/25 10:00        17.8  33.0      15.1      1.3    point  2605740
+822  1/13/25 11:00        17.6  30.8      14.9      0.2    point  2605740
+823  1/13/25 12:00        16.7  29.4      14.1     -1.2    point  2605740
+824  1/13/25 13:00        15.5  29.6      13.1     -2.2    point  2605740</code></pre>
+</div>
+</div>
+</section>
+<section id="read-in-and-combine-files" class="level3">
+<h3 class="anchored" data-anchor-id="read-in-and-combine-files">Read in and Combine Files</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>combined_kestrel_notcleaned <span class="ot">=</span> <span class="fu">map_dfr</span>(allfiles, read_fun) <span class="co"># combine all the files</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in .f(.x[[i]], ...): NAs introduced by coercion
+
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+
+Warning in .f(.x[[i]], ...): NAs introduced by coercion</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># check that we have the right number of loggers in the file</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>combined_kestrel_notcleaned <span class="sc">|&gt;</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(loggerID) <span class="sc">|&gt;</span> </span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 9 × 2
+  loggerID     n
+     &lt;dbl&gt; &lt;int&gt;
+1  2592687  1005
+2  2592691   839
+3  2605738   839
+4  2605739   839
+5  2605740   824
+6  2605741  7683
+7  2605746   839
+8  2605748   839
+9  2605749   839</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add in microsite and block information</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="do">### pulls in file with loggerID information ("KestrelLoggerAssignments")</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>df_loggers <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"https://www.dropbox.com/scl/fi/25mbe4f5g30nbrgfwn1of/KestrelLoggerAssignments.csv?rlkey=d2djvhf8jkq3hpv7yvoez2zoy&amp;dl=1"</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>df_loggers<span class="sc">$</span>loggerID <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(df_loggers<span class="sc">$</span>loggerID)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>combined_kestrel_notcleaned <span class="ot">&lt;-</span> combined_kestrel_notcleaned <span class="sc">|&gt;</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(df_loggers, <span class="fu">join_by</span>(loggerID))</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="co">#save the output as a .csv file - this is the combined L0 data</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(combined_kestrel_notcleaned, <span class="at">file =</span> <span class="fu">file.path</span>(</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">"/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data &amp; Metadata Archives/OngavaDungDecay/MicroclimateData/L1"</span>, </span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ongava_kestrel_L0.csv"</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="l1" class="level2">
+<h2 class="anchored" data-anchor-id="l1">L1</h2>
+<section id="time-formatting" class="level3">
+<h3 class="anchored" data-anchor-id="time-formatting">Time formatting</h3>
+<p>Check that the time column is populated <em>for all loggers</em>. If not, the format might be incorrect - sometimes Kestels are set to send the datetime output in different formats.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># make a new file for messing around with date-time formats</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>combined_kestrel_cleaning <span class="ot">&lt;-</span> combined_kestrel_notcleaned </span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize the 'time' column</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>combined_kestrel_cleaning<span class="sc">$</span>time <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Try parsing with flexible parse_date_time function</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>combined_kestrel_cleaning<span class="sc">$</span>time <span class="ot">&lt;-</span> <span class="fu">parse_date_time</span>(</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  combined_kestrel_cleaning<span class="sc">$</span>datetime, </span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">orders =</span> <span class="fu">c</span>(<span class="st">"mdy HM"</span>, <span class="st">"ymd HMS p"</span>),  <span class="co"># List of possible formats</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">tz =</span> <span class="st">"Africa/Johannesburg"</span>,</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">quiet =</span> <span class="cn">FALSE</span>  <span class="co"># This will show warnings and errors if parsing fails</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if there are still NA values after parsing</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(combined_kestrel_cleaning<span class="sc">$</span>time))) {</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Some entries could not be parsed!</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print rows where the time column is still NA</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(combined_kestrel_cleaning[<span class="fu">is.na</span>(combined_kestrel_cleaning<span class="sc">$</span>time),])</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove rows with NA time values (if any remain after conversion)</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>combined_kestrel_cleaning <span class="ot">&lt;-</span> combined_kestrel_cleaning[<span class="sc">!</span><span class="fu">is.na</span>(combined_kestrel_cleaning<span class="sc">$</span>time), ]</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Ensure the time is in 24-hour format (POSIXct will handle it correctly)</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>combined_kestrel_cleaning<span class="sc">$</span>time <span class="ot">&lt;-</span> <span class="fu">as.POSIXct</span>(combined_kestrel_cleaning<span class="sc">$</span>time, <span class="at">format =</span> <span class="st">"%Y-%m-%d %H:%M:%S"</span>)</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Round down to the nearest minute (sets seconds to :00)</span></span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Accounts for loggers that oddly start logging at :30</span></span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>combined_kestrel_cleaning<span class="sc">$</span>time <span class="ot">&lt;-</span> <span class="fu">floor_date</span>(combined_kestrel_cleaning<span class="sc">$</span>time, <span class="at">unit =</span> <span class="st">"minute"</span>)</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a><span class="co"># remove any data before the deployment date</span></span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">NOTE</span><span class="co"> THAT THE DATE MAY NEED TO BE ADJUSTED - PLACE THE DESIRED START DATE BELOW</span></span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a><span class="co">#L1_kestrel_data &lt;-combined_kestrel_notcleaned[combined_kestrel_notcleaned[["time"]] #&gt;= "2024-12-18", ]  </span></span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a><span class="do">#### added end point since one logger was left logging longer than the others (Januray 2025 - first download)</span></span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="ot">&lt;-</span> combined_kestrel_cleaning[</span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>  combined_kestrel_cleaning[[<span class="st">"time"</span>]] <span class="sc">&gt;=</span> <span class="st">"2024-12-18"</span> <span class="sc">&amp;</span> </span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>  combined_kestrel_cleaning[[<span class="st">"time"</span>]] <span class="sc">&lt;=</span> <span class="st">"2025-01-14"</span>, </span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Check that all loggers are still present</span></span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="sc">|&gt;</span></span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(loggerID) <span class="sc">|&gt;</span> </span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 9 × 2
+  loggerID     n
+     &lt;dbl&gt; &lt;int&gt;
+1  2592687   649
+2  2592691   647
+3  2605738   647
+4  2605739   647
+5  2605740   632
+6  2605741   647
+7  2605746   647
+8  2605748   647
+9  2605749   647</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">#save the output as a .csv file</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(L1_kestrel_data, <span class="at">file =</span> <span class="fu">file.path</span>(</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data &amp; Metadata Archives/OngavaDungDecay/MicroclimateData/L1"</span>, </span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ongava_kestrel_L1.csv"</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co"># check the data carefully to see if any additional cleaning is needed!</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="individual-logger-plots" class="level3">
+<h3 class="anchored" data-anchor-id="individual-logger-plots">Individual Logger Plots</h3>
+<p>Below are separate plots for each logger (grouped by treatment). These are intended to check the data (e.g., gaps in logs for different loggers and correct number of loggers per site).</p>
+<section id="rh" class="level4">
+<h4 class="anchored" data-anchor-id="rh">RH</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="sc">|&gt;</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>time, <span class="at">y=</span>RH, <span class="at">color =</span> WaterTrt)) <span class="sc">+</span> </span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">" "</span>) <span class="sc">+</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">xlab</span>(<span class="st">" "</span>) <span class="sc">+</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ylab</span>(<span class="st">"RH (%)"</span>) <span class="sc">+</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_datetime</span>(<span class="at">date_breaks =</span> <span class="st">"5 day"</span>, <span class="at">labels =</span> <span class="fu">date_format</span>(<span class="st">"%m-%d-%y"</span>)) <span class="sc">+</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(loggerID <span class="sc">~</span> .) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/RH-plot-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="temperature" class="level4">
+<h4 class="anchored" data-anchor-id="temperature">Temperature</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="sc">|&gt;</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>time, <span class="at">y=</span>temperature, <span class="at">color =</span> WaterTrt, <span class="at">group =</span> <span class="dv">1</span>)) <span class="sc">+</span> </span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">" "</span>) <span class="sc">+</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">xlab</span>(<span class="st">" "</span>) <span class="sc">+</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ylab</span>(<span class="st">"Temperature (C)"</span>) <span class="sc">+</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_datetime</span>(<span class="at">date_breaks =</span> <span class="st">"5 day"</span>, <span class="at">labels =</span> <span class="fu">date_format</span>(<span class="st">"%m-%d-%y"</span>)) <span class="sc">+</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(loggerID <span class="sc">~</span> .) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+</section>
+</section>
+<section id="l2-treatment-means" class="level1">
+<h1>L2: Treatment Means</h1>
+<p><em>Check that the tibble output after running this chunk looks reasonable. N should equal the expected number of loggers. There should be values for SD and SE, assuming that there is more than one logger for each time point.</em></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create df that condenses the multiple loggers per microsite and water treatment down to one mean value per hour</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>L2_hourlymeans_df <span class="ot">&lt;-</span> L1_kestrel_data <span class="sc">|&gt;</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Microsite, WaterTrt, time) <span class="sc">|&gt;</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>               <span class="at">N    =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(RH)),</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>               <span class="at">mean_T =</span> <span class="fu">mean</span>(temperature, <span class="at">na.rm=</span><span class="cn">TRUE</span>),</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>               <span class="at">sd_T   =</span> <span class="fu">sd</span>(temperature, <span class="at">na.rm=</span><span class="cn">TRUE</span>),</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>               <span class="at">se_T   =</span> sd_T <span class="sc">/</span> <span class="fu">sqrt</span>(N),</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>               <span class="at">mean_RH =</span> <span class="fu">mean</span>(RH, <span class="at">na.rm=</span><span class="cn">TRUE</span>),</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>               <span class="at">sd_RH   =</span> <span class="fu">sd</span>(RH, <span class="at">na.rm=</span><span class="cn">TRUE</span>),</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>               <span class="at">se_RH   =</span> sd_RH <span class="sc">/</span> <span class="fu">sqrt</span>(N)</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>               )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>`summarise()` has grouped output by 'Microsite', 'WaterTrt'. You can override
+using the `.groups` argument.</code></pre>
+</div>
+</div>
+<section id="plots-of-hourly-means" class="level2">
+<h2 class="anchored" data-anchor-id="plots-of-hourly-means">Plots of hourly means</h2>
+<section id="rh-1" class="level3">
+<h3 class="anchored" data-anchor-id="rh-1">RH</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># plots of hourly means by treatment - RH</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>L2_hourlymeans_df <span class="sc">|&gt;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>time, <span class="at">y=</span>mean_RH, <span class="at">color =</span> WaterTrt, <span class="at">linetype =</span> WaterTrt)) <span class="sc">+</span> </span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Relative Humidity (%)"</span>) <span class="sc">+</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">""</span>) <span class="sc">+</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_grid</span>(Microsite <span class="sc">~</span> .) <span class="sc">+</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Addition"</span> <span class="ot">=</span> <span class="st">"blue"</span>, <span class="st">"Ctrl"</span> <span class="ot">=</span> <span class="st">"red"</span>)) <span class="sc">+</span>  </span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Addition"</span> <span class="ot">=</span> <span class="st">"solid"</span>, <span class="st">"Ctrl"</span> <span class="ot">=</span> <span class="st">"dashed"</span>))  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/RH-by-treatment-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="temperature-1" class="level3">
+<h3 class="anchored" data-anchor-id="temperature-1">Temperature</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># plots of hourly means by treatment - temperature</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>L2_hourlymeans_df <span class="sc">|&gt;</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>time, <span class="at">y=</span>mean_T, <span class="at">color =</span> WaterTrt, <span class="at">linetype =</span> WaterTrt)) <span class="sc">+</span> </span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Temperature (C)"</span>) <span class="sc">+</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">""</span>) <span class="sc">+</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_grid</span>(Microsite <span class="sc">~</span> .) <span class="sc">+</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Addition"</span> <span class="ot">=</span> <span class="st">"blue"</span>, <span class="st">"Ctrl"</span> <span class="ot">=</span> <span class="st">"red"</span>)) <span class="sc">+</span>  </span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Addition"</span> <span class="ot">=</span> <span class="st">"solid"</span>, <span class="st">"Ctrl"</span> <span class="ot">=</span> <span class="st">"dashed"</span>))  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/temperature-by-treatment-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
