@@ -45,16 +45,7 @@ Much of this code is based on the commentary from: https://aosmith.rbind.io/2017
 
 ```{r}
 # list all files to read in
-allfiles <- list.files(
-  path = file.path("www.dropbox.com/scl/fo/v2avi7zz3cj5dgo31qhj3/AE1ugOP4JnrywuBrWRWNsnw?rlkey=ppihg6eq521azgdmhcko79odj&dl=1", "L0"), # Update to your Dropbox path
-  pattern = "\\.csv$", # Ensure proper regex for .csv files
-  full.names = TRUE
-)
-
-allfiles = list.files(path = here("L0 kestrel data"), # get a list of all files in the "kestrel data" folder
-            pattern = ".csv", # only files that end in .csv
-            full.names = TRUE)  # return the complete file path (and not just the file name)
-allfiles = list.files(("https://www.dropbox.com/scl/fo/jo7m9eleaq7chmy226s4m/ALqfon0Kow24K_8XeoOCn2c?rlkey=xnsljvubk1h8ecni0wk5fh59u&dl=1"), # get a list of all files in the "kestrel data" folder
+allfiles = list.files(path = here("Microclimate","L0"), # get a list of all files in the "kestrel data" folder
             pattern = ".csv", # only files that end in .csv
             full.names = TRUE)  # return the complete file path (and not just the file name)
 
