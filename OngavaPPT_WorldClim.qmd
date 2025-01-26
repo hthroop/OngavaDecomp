@@ -57,7 +57,10 @@ start_year <- 2010
 end_year <- 2019
 
 # Path to the directory where the downloaded .tif files are stored
+# data_dir <- here("wc2.1_cruts4.06_2.5m_prec_2010-2019")
+# MAKE LOCAL DERT DROPBOX
 data_dir <- here("wc2.1_cruts4.06_2.5m_prec_2010-2019")
+
 
 # Function to extract WorldClim2.1 data from local files
 get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
