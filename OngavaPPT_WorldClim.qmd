@@ -15,6 +15,7 @@ library(terra)
 library(here)
 library(tidyverse)
 library(curl)
+library(lubridate)
 
 # Define the coordinates for Ongava Research Centre
 lat <- -19.35472
@@ -58,9 +59,8 @@ end_year <- 2019
 
 # Path to the directory where the downloaded .tif files are stored
 # data_dir <- here("wc2.1_cruts4.06_2.5m_prec_2010-2019")
-# MAKE LOCAL DERT DROPBOX
-data_dir <- here("wc2.1_cruts4.06_2.5m_prec_2010-2019")
-
+# Currently this maps to Heather's computer, local version of the Dropbox data file (I can't get an API working to Dropbox to do a data pull)
+data_dir <- file.path("/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/wc2.1_cruts4.06_2.5m_prec_2010-2019")
 
 # Function to extract WorldClim2.1 data from local files
 get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
@@ -163,6 +163,57 @@ ggsave(filename = here("figs", "2009-2019monthly_rainfall_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
+```{r}
+# compare monthly PPT from WorldClim2.1 data with data during the dung decay experiment
+
+# Load the additional rainfall dataset
+ongava_ppt_2024_2025 <- read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
+
+# Convert date column to Date format
+ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
+  mutate(Date = mdy(Date),  # Use mdy() for "month/day/year" format
+         Year = year(Date),
+         Month = month(Date))
+
+# Aggregate daily rainfall to monthly totals
+monthly_rainfall_2024_2025 <- ongava_ppt_2024_2025 |>
+  group_by(Year, Month) |>
+  summarize(total_PPT = sum(CampusPPT, na.rm = TRUE), .groups = "drop")
+
+# Create the original plot
+monthly_rainfall_plot <- ggplot(monthly_precip_2010.2019, aes(x = Month)) +
+  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT, 
+                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 0.2) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "Month", y = "Precipitation (mm)", 
+       title = "Ongava WorldClim2.1 2009-2019 vs. Campus Rainfall") +
+  theme_classic()
+
+# Add observed rainfall as individual points with different symbols for each year
+monthly_rainfall_plot <- monthly_rainfall_plot +
+  geom_point(data = monthly_rainfall_2024_2025, 
+             aes(x = Month, y = total_PPT, shape = factor(Year)), size = 3) +
+  scale_shape_manual(name = "Year", values = seq(0, 9))  # Unique symbols for years
+
+# Add red text annotation in the middle of the plot
+monthly_rainfall_plot <- monthly_rainfall_plot +
+  annotate("text", x = 6.5, y = max(monthly_precip_2010.2019$mean_monthly_PPT, na.rm = TRUE) * 0.5, 
+           label = "data through 2025-01-23", color = "red", size = 4)
+
+# Display the plot
+print(monthly_rainfall_plot)
+
+# Save the updated plot
+ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
+       plot = monthly_rainfall_plot,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+
+
+```
+
 #### Rain year summary
 
 ```{r}
@@ -172,8 +223,36 @@ precip_data_2010.2019 <- precip_data_2010.2019 |>
                             paste0(Year, "-", Year + 1),
                             paste0(Year - 1, "-", Year)))
 
+```
+
+### Create Function: Monthly PPT (as percentage of rain year total)
+
+```{r}
+# Calculate for each month the percentage of the total PPT for that rainyear that fell in that month
+
+# Function to calculate the percentage of monthly precipitation out of the annual total
+calculate_pct_annual_rainyr_PPT <- function(precip_data) {
+  # Group data by year and calculate the annual total precipitation
+  annual_totals <- precip_data_2010.2019 |>
+    group_by(rain_year) |>
+    summarise(Annual_PPT = sum(Precipitation, na.rm = TRUE))
+  
+  # Join the annual totals back to the original data
+  precip_data <- precip_data |>
+    left_join(annual_totals, by = "Year")
+  
+  # Calculate the percentage of each month's precipitation out of the annual total
+  precip_data <- precip_data |>
+    mutate(pct_annual_PPT = (Precipitation / Annual_PPT) * 100)
+  
+  return(precip_data)
+}
+```
+
+```{r}
 # Apply the function to calculate monthly percent of total yearly rainfall the precip_data dataframe
 precip_data_2010.2019 <- calculate_pct_annual_rainyr_PPT(precip_data_2010.2019)
+
 ```
 
 #### Comparison with Ongava rain guage data
@@ -375,24 +454,6 @@ precip_data_1960.2021 <- precip_data_1960.2021 |>
   mutate(rain_year = ifelse(Month >= 9 & Month <= 12, 
                             paste0(Year, "-", Year + 1),
                             paste0(Year - 1, "-", Year)))
-
-# Function to calculate the percentage of monthly precipitation out of the annual total
-calculate_pct_annual_rainyr_PPT_1960.2021 <- function(precip_data_1960.2021) {
-  # Group data by rain_year and calculate the annual total precipitation
-  annual_totals_1960.2021 <- precip_data_1960.2021 |>
-    group_by(rain_year) |>
-    summarise(Annual_rainyr_PPT = sum(Precipitation, na.rm = TRUE))
-  
-  # Join the annual totals back to the original data
-  precip_data_1960.2021 <- precip_data_1960.2021 |>
-    left_join(annual_totals_1960.2021, by = "rain_year")
-  
-  # Calculate the percentage of each month's precipitation out of the annual total
-  precip_data_1960.2021 <- precip_data_1960.2021 |>
-    mutate(pct_rainyr_PPT = (Precipitation / Annual_rainyr_PPT) * 100)
-  
-  return(precip_data_1960.2021)
-}
 
 # Apply the function to the precip_data dataframe
 precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT_1960.2021(precip_data_1960.2021)
