@@ -13,7 +13,8 @@ Data compilation of Kestrel data from Ongava for the decomposition experiment (2
 
 This script reads in csv files from individual Kestrel loggers, merges the files, and synthesizes the data.
 
-Created January 24, 2025 Heather Throop
+Created January 24, 2025 Heather Throop\
+Updated with new data March 19, 2025 Heather Throop
 
 To run this code, all raw Kestrel files should be placed within the "L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder (currently mapped to HT's local drive as API token for Dropbox folder pull not working).
 
