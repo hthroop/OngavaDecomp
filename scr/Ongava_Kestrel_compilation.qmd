@@ -14,7 +14,7 @@ Data compilation of Kestrel data from Ongava for the decomposition experiment (2
 This script reads in csv files from individual Kestrel loggers, merges the files, and synthesizes the data.
 
 Created January 24, 2025 Heather Throop\
-Updated with new data March 19, 2025 Heather Throop
+Updated with new data March 19, 202
 
 To run this code, all raw Kestrel files should be placed within the "L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder (currently mapped to HT's local drive as API token for Dropbox folder pull not working).
 
@@ -142,12 +142,13 @@ combined_kestrel_cleaning$time <- floor_date(combined_kestrel_cleaning$time, uni
 
 # remove any data before the deployment date
 # NOTE THAT THE DATE MAY NEED TO BE ADJUSTED - PLACE THE DESIRED START DATE BELOW
-#L1_kestrel_data <-combined_kestrel_notcleaned[combined_kestrel_notcleaned[["time"]] #>= "2024-12-18", ]  
-#### added end point since one logger was left logging longer than the others (Januray 2025 - first download)
-L1_kestrel_data <- combined_kestrel_cleaning[
-  combined_kestrel_cleaning[["time"]] >= "2024-12-18" & 
-  combined_kestrel_cleaning[["time"]] <= "2025-01-14", 
-]
+L1_kestrel_data <-combined_kestrel_cleaning[combined_kestrel_cleaning
+                                              [["time"]] >= "2024-12-18", ]  
+#### added end point since one logger was left logging longer than the others (January 2025 - first download)
+#L1_kestrel_data <- combined_kestrel_cleaning[
+#  combined_kestrel_cleaning[["time"]] >= "2024-12-18" & 
+#  combined_kestrel_cleaning[["time"]] <= "2025-01-14", 
+#]
 
 # Check that all loggers are still present
 L1_kestrel_data |>
