@@ -200,7 +200,7 @@ monthly_rainfall_plot <- monthly_rainfall_plot +
 # Add red text annotation in the middle of the plot
 monthly_rainfall_plot <- monthly_rainfall_plot +
   annotate("text", x = 6.5, y = max(monthly_precip_2010.2019$mean_monthly_PPT, na.rm = TRUE) * 0.5, 
-           label = "data through 2025-01-23", color = "red", size = 4)
+           label = "data through 2025-04-03", color = "red", size = 4)
 
 # Display the plot
 print(monthly_rainfall_plot)
