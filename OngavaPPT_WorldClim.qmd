@@ -21,6 +21,8 @@ library(lubridate)
 lat <- -19.35472
 lon <- 15.90289
 
+# define the dropbox folder path where output will be saved
+dropbox_path <- "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/RainfallData/R_output"
 ```
 
 ### Create Function: Monthly PPT (as percentage of annual total)
@@ -116,8 +118,8 @@ precip_data_2010.2019 <- get_WorldClim2_data(lat, lon, start_year, end_year, dat
 # Display the summary of the data
 print(summary(precip_data_2010.2019))
 
-# Save the precip_data dataframe as a CSV file
-write.csv(precip_data_2010.2019, file = here("output", "precip_data_2010.2019.csv"), 
+# Save the precip_data dataframe as a CSV file to Dropbox
+write.csv(precip_data_2010.2019, file = file.path(dropbox_path, "precip_data_2010.2019.csv"), 
           row.names = FALSE)
 
 ```
@@ -163,10 +165,14 @@ ggsave(filename = here("figs", "2009-2019monthly_rainfall_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-```{r}
-# compare monthly PPT from WorldClim2.1 data with data during the dung decay experiment
+## Compare WorldClim with Ongava Data
 
-# Load the additional rainfall dataset
+### DungDecay Monthly means
+
+```{r}
+# compare monthly PPT from WorldClim2.1 data with rainguage data collected at Ongava during the dung decay experiment
+
+# Load the Ongava rainfall dataset
 ongava_ppt_2024_2025 <- read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
 
 # Convert date column to Date format
@@ -214,7 +220,9 @@ ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
 
 ```
 
-#### Rain year summary
+### Create Function: Monthly PPT (as percentage of rain year total)
+
+#### NOT WORKING Rain year summary
 
 ```{r}
 # Add the rain_year column to precip_data
@@ -224,8 +232,6 @@ precip_data_2010.2019 <- precip_data_2010.2019 |>
                             paste0(Year - 1, "-", Year)))
 
 ```
-
-### Create Function: Monthly PPT (as percentage of rain year total)
 
 ```{r}
 # Calculate for each month the percentage of the total PPT for that rainyear that fell in that month
@@ -255,7 +261,7 @@ precip_data_2010.2019 <- calculate_pct_annual_rainyr_PPT(precip_data_2010.2019)
 
 ```
 
-#### Comparison with Ongava rain guage data
+#### NOT WORKING Comparison with historical Ongava ppt data
 
 Import Ongava data from Dropbox\
 Note that these data are from Stuart Crawford via Rolf Becker. Stuart's email suggests that more data may be available from the Davis Weatherlink app. I didn't find any publicly available data from the app, but can look into this.
@@ -329,62 +335,62 @@ If needed, these can be redownloaded from <https://worldclim.org/data/monthlywth
 ```{r}
 #### DO NOT RUN THIS CHUNK - USES DELETED WORLDCLIM DATA
 # Define the time range
-start_year <- 1960
-end_year <- 2021
+#start_year <- 1960
+#end_year <- 2021
 
 # Path to the directory where the downloaded .tif files are stored
-data_dir <- here("wc2.1_cruts4.06_2.5m_prec_1960-2021")
+#data_dir <- here("wc2.1_cruts4.06_2.5m_prec_1960-2021")
 
 # Function to extract WorldClim2.1 data from local files
-get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
+#get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
   # Create an empty data frame to store the results
-  precip_data <- data.frame(Year = integer(), 
-                            Month = integer(), 
-                            Precipitation = numeric())
+ # precip_data <- data.frame(Year = integer(), 
+ #                           Month = integer(), 
+ #                           Precipitation = numeric())
   
   # Convert coordinates to a matrix
-  coordinates <- matrix(c(lon, lat), ncol = 2)
+ # coordinates <- matrix(c(lon, lat), ncol = 2)
   
   # Loop through each year and month and process the corresponding data
-  for (year in start_year:end_year) {
-    for (month in 1:12) {
+#  for (year in start_year:end_year) {
+#    for (month in 1:12) {
       # Construct the file path for the specific year and month
-      file_path <- file.path(data_dir, sprintf("wc2.1_2.5m_prec_%d-%02d.tif", year, month))
+    #  file_path <- file.path(data_dir, sprintf("wc2.1_2.5m_prec_%d-%02d.tif", year, month))
       
       # Check if the file exists before attempting to load it
-      if (file.exists(file_path)) {
+#      if (file.exists(file_path)) {
         # Load the raster file using terra
-        raster_data <- rast(file_path)
-        
+ #       raster_data <- rast(file_path)
+#        
         # Ensure the raster has the correct CRS (WGS84)
-        crs(raster_data) <- "EPSG:4326"  # WGS84
+ #       crs(raster_data) <- "EPSG:4326"  # WGS84
         
         # Extract the precipitation data for the location
-        precip_value <- terra::extract(raster_data, coordinates)
+#        precip_value <- terra::extract(raster_data, coordinates)
         
         # Check if precip_value has the expected structure and contents
-        if (!is.null(precip_value) && nrow(precip_value) > 0) {
-          precip_value <- precip_value[1, 1]  # Extract the value from the first row and first column
-          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = precip_value))
-        } else {
-          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
-        }
-      } else {
-        warning(paste("File not found:", file_path))
+ #       if (!is.null(precip_value) && nrow(precip_value) > 0) {
+   #       precip_value <- precip_value[1, 1]  # Extract the value from the first row and first column
+ #         precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = precip_value))
+#        } else {
+#          precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
+ #       }
+  #    } else {
+ #       warning(paste("File not found:", file_path))
         # Append NA for missing file
-        precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
+#        precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
       }
     }
   }
   
-  return(precip_data)
+#  return(precip_data)
 }
 
 # Get WorldClim2.1 data for the specified location and date range
-precip_data_1960.2021 <- get_WorldClim2_data(latitude, longitude, start_year, end_year, data_dir)
+#precip_data_1960.2021 <- get_WorldClim2_data(latitude, longitude, start_year, end_year, data_dir)
 
 # Display the summary of the data
-print(summary(precip_data_1960.2021))
+#print(summary(precip_data_1960.2021))
 
 # Save the precip_data dataframe as a CSV file
 # Commented out just in case this chunk run accidentally
@@ -411,8 +417,6 @@ precip_data_1960.2021 <- precip_data_1960.2021 |>
 # For the WorldClim data at Ongava, calculate for each month the percentage of the total PPT for that year that fell in that month. Use the function from above.
 # Apply the function to the precip_data dataframe
 precip_data_1960.2021 <- calculate_pct_annual_PPT(precip_data_1960.2021)
-
-
 ```
 
 ```{r}
