@@ -693,4 +693,17 @@ ggplot(ongava_ppt_2024_2025, aes(x = Date)) +
        color = "Legend") +
   theme_minimal()
 
+ggsave(filename = here("figs", "cumulative_precipitation_plot.jpg"),
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+
+
+
+# Define the full path to save the plot
+#plot_path <- file.path(dropbox_path, "cumulative_precipitation_plot.png")
+
+# Save the last ggplot to the specified path
+#ggsave(plot_path, width = 10, height = 6, dpi = 300)
+
+
 ```
