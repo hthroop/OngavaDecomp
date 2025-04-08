@@ -220,9 +220,9 @@ ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
 
 ```
 
-### Create Function: Monthly PPT (as percentage of rain year total)
+### Monthly PPT (as percentage of rain year total)
 
-#### NOT WORKING Rain year summary
+#### Rain year summary
 
 ```{r}
 # Add the rain_year column to precip_data
@@ -261,7 +261,7 @@ precip_data_2010.2019 <- calculate_pct_annual_rainyr_PPT(precip_data_2010.2019)
 
 ```
 
-#### NOT WORKING Comparison with historical Ongava ppt data
+### Comparison with historical Ongava ppt data
 
 Import Ongava data from Dropbox\
 Note that these data are from Stuart Crawford via Rolf Becker. Stuart's email suggests that more data may be available from the Davis Weatherlink app. I didn't find any publicly available data from the app, but can look into this.
@@ -288,17 +288,17 @@ annual_rainfall_2010.2019 <- precip_data_2010.2019 |>
     filter(Month == 1) |>
     filter(rain_year != "2009-2010") |> # remove 2009-2010 since no 2009 data
     filter(rain_year != "2019-2020") |> # remove 2019-2020 since no 2020 data
-    select(rain_year, Annual_rainyr_PPT, OngavaMeasuredPPT)
+    select(rain_year, Annual_PPT, OngavaMeasuredPPT)
 
 # calculate mean rain_year PPT for both data sources
 mean_WC_rainyr_ppt2010.2019 <- mean(
-  annual_rainfall_2010.2019$Annual_rainyr_PPT, na.rm = TRUE)
+  annual_rainfall_2010.2019$Annual_PPT, na.rm = TRUE)
 mean_Ong_rainyr_ppt2010.2019 <- mean(
   annual_rainfall_2010.2019$OngavaMeasuredPPT, na.rm = TRUE)
 
 # plot the rainfall over time
 rainfall_comparison <- ggplot(annual_rainfall_2010.2019, aes(x = rain_year)) +
-  geom_line(aes(y = Annual_rainyr_PPT, group = 1, 
+  geom_line(aes(y = Annual_PPT, group = 1, 
                 color = "WorldClim2.1", linetype = "WorldClim2.1"), 
             linewidth = 1) +
   geom_line(aes(y = OngavaMeasuredPPT, group = 1, 
@@ -327,6 +327,8 @@ ggsave(filename = here("figs", "Ongava_vs_WorldCLim_annualPPT.jpg"),
 ## 1960-2021 WorldClim Data
 
 It should be possible to pull data from UC Davis site but I have not been successful with this (looks like a web issue rather than coding issue). The alternative is to download the ENTIRE dataset (16 GB). I did this but extracted the monthly precip data from the geotiffs and deleted the geotiffs.
+
+### NOT WORKING: Download WorldClim Data
 
 DO NOT RUN THIS CHUNK – PULLS DATA FROM GEOTIFFS (NOW DELETED)
 
@@ -399,14 +401,15 @@ If needed, these can be redownloaded from <https://worldclim.org/data/monthlywth
  
 ```
 
-### PPT Summaries
+### PPT Summaries (using saved data)
 
 The following chunks use saved data - ok to run!
 
 ```{r}
 
 # Pull in the saved data extracted from WorldClim (in last chunk)
-precip_data_1960.2021 <- read_csv("precip_data_1960.2021.csv")
+precip_data_1960.2021 <- read_csv(file = here(
+  "output", "precip_data_1960.2021.csv"))
 
 # Add the rain_year column to precip_data
 precip_data_1960.2021 <- precip_data_1960.2021 |>
@@ -461,6 +464,10 @@ precip_data_1960.2021 <- precip_data_1960.2021 |>
 
 # Apply the function to the precip_data dataframe
 precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT_1960.2021(precip_data_1960.2021)
+
+# Apply the function to calculate monthly percent of total yearly rainfall the precip_data dataframe
+precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT(precip_data_1960.2021)
+
 ```
 
 ```{r}
