@@ -662,3 +662,71 @@ ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 ```
+
+Plot rainfall additions
+
+```{r}
+# 
+
+# Load the Ongava rainfall dataset
+ongava_ppt_additions <- read_csv("https://www.dropbox.com/scl/fi/upcwvh9jutv6605axzpio/OngavaWatering_actual.csv?rlkey=4plvmvhbnk7dxjdz986wc0f9z&dl=1")
+
+# Convert date column to Date format
+ongava_ppt_additions <- ongava_ppt_additions |>
+  mutate(Date = mdy(Date))
+
+# Join the rainfall data with the PPT addition data 
+ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
+    left_join(ongava_ppt_additions, by = "Date")
+
+# Add new variables for PPT additions in mm
+# calculate area of the plot and save as a variable
+plotarea <- 3.14159*0.5^2
+# a 1 mm PPT event is equivalent to application of 0.785 L added to each plot
+ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
+  mutate(PPT_addition_mm_planned = (PPT_addition_L_planned * 1/plotarea),
+         PPT_addition_mm_planned = ifelse(is.na(PPT_addition_mm_planned), 
+                                          0, PPT_addition_mm_planned), # replace NA with 0
+         PPT_addition_mm_actual = (PPT_addition_L_actual * 1/plotarea),
+         PPT_addition_mm_actual = ifelse(is.na(PPT_addition_mm_actual), 
+                                          0, PPT_addition_mm_actual), # replace NA with 0
+         Control_PPT_mm = rowMeans(across(c(CampusPPT, OfficePPT)), na.rm = TRUE), 
+         #mean of Office and Campus PPT
+         Addition_PPT_mm_actual = rowSums(across(c(Control_PPT_mm, 
+                                                   PPT_addition_mm_actual)), na.rm = TRUE),
+         Addition_PPT_mm_planned = rowSums(across(c(Control_PPT_mm, 
+                                                   PPT_addition_mm_planned)), na.rm = TRUE),)
+
+# Create the plot for cumulative precipitation 
+# Calculate cumulative precipitation
+ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
+  arrange(Date) |>
+  mutate(Cumulative_PPT_ctrl = cumsum(Control_PPT_mm),
+         Cumulative_PPT_addition = cumsum(Addition_PPT_mm_actual),
+         Cumulative_PPT_planned = cumsum(Addition_PPT_mm_planned))
+
+# Plot cumulative precipitation
+ggplot(ongava_ppt_2024_2025, aes(x = Date)) +
+  geom_line(aes(y = Cumulative_PPT_ctrl, color = "Control PPT"), size = 1) +
+  geom_line(aes(y = Cumulative_PPT_addition, color = "Actual Additions"), size = 1) +
+  geom_line(aes(y = Cumulative_PPT_planned, color = "Planned Additions"), size = 1) +
+  labs(title = "Cumulative Rainfall and Additions",
+       x = "Date",
+       y = "Cumulative Precipitation (mm)",
+       color = "Legend") +
+  theme_minimal()
+
+ggsave(filename = here("figs", "cumulative_precipitation_plot.jpg"),
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+
+
+
+# Define the full path to save the plot
+#plot_path <- file.path(dropbox_path, "cumulative_precipitation_plot.png")
+
+# Save the last ggplot to the specified path
+#ggsave(plot_path, width = 10, height = 6, dpi = 300)
+
+
+```
