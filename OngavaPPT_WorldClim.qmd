@@ -7,9 +7,19 @@ editor_options:
   chunk_output_type: console
 ---
 
-## Set Up
+This code explores historical precipitation data for Ongava Research Center and uses this to come up with a watering schedule for the decomposition experiment establish by Heather Throop and Rolf Becker in June 2024.
+
+Rainfall data from the experiment are compared with historical data.
+
+Data are read in from Dropbox, with the exception of WorldClim geotiffs that are pulled from a folder on Heather's local drive (due to issues with getting an API pull to work with Dropbox - see notes below).\
+Output csv data are saved in Dropbox.\
+Output figures are saved in the Github repo (along with this script).
+
+# Set Up
 
 ```{r}
+#| label: setup
+
 # Load necessary packages
 library(terra)
 library(here)
@@ -25,29 +35,7 @@ lon <- 15.90289
 dropbox_path <- "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/RainfallData/R_output"
 ```
 
-### Create Function: Monthly PPT (as percentage of annual total)
-
-```{r}
-# Calculate for each month the percentage of the total PPT for that year that fell in that month
-
-# Function to calculate the percentage of monthly precipitation out of the annual total
-calculate_pct_annual_PPT <- function(precip_data) {
-  # Group data by year and calculate the annual total precipitation
-  annual_totals <- precip_data |>
-    group_by(Year) |>
-    summarise(Annual_PPT = sum(Precipitation, na.rm = TRUE))
-  
-  # Join the annual totals back to the original data
-  precip_data <- precip_data |>
-    left_join(annual_totals, by = "Year")
-  
-  # Calculate the percentage of each month's precipitation out of the annual total
-  precip_data <- precip_data |>
-    mutate(pct_annual_PPT = (Precipitation / Annual_PPT) * 100)
-  
-  return(precip_data)
-}
-```
+# WorldClim Data
 
 ## 2010-2019 WorldClim Monthly PPT Data
 
@@ -126,14 +114,38 @@ write.csv(precip_data_2010.2019, file = file.path(dropbox_path, "precip_data_201
 
 ### PPT Summaries
 
+#### Monthly PPT (as percentage of annual total)
+
 ```{r}
+# Calculate for each month the percentage of the total PPT for that year that fell in that month
+
+# Function to calculate the percentage of monthly precipitation out of the annual total
+calculate_pct_annual_PPT <- function(precip_data) {
+  # Group data by year and calculate the annual total precipitation
+  annual_totals <- precip_data |>
+    group_by(Year) |>
+    summarise(Annual_PPT = sum(Precipitation, na.rm = TRUE))
+  
+  # Join the annual totals back to the original data
+  precip_data <- precip_data |>
+    left_join(annual_totals, by = "Year")
+  
+  # Calculate the percentage of each month's precipitation out of the annual total
+  precip_data <- precip_data |>
+    mutate(pct_annual_PPT = (Precipitation / Annual_PPT) * 100)
+  
+  return(precip_data)
+}
 
 # For the WorldClim data at Ongava, calculate for each month the percentage of the total PPT for that year that fell in that month
 
-# Apply the function created above to do this
+# Apply the function created above to do this, creating two new variables:
+# Annual_PPT 
+# pct_annual_PPT
 precip_data_2010.2019 <- calculate_pct_annual_PPT(precip_data_2010.2019)
-
 ```
+
+#### Summarize monthly PPT (2010-2019)
 
 ```{r}
 # Summarize mean monthly PPT for WorldClim data   
@@ -145,6 +157,8 @@ monthly_precip_2010.2019 <- precip_data_2010.2019 |>
               se_monthly_PPT = sd_monthly_PPT / sqrt(N))
  
 ```
+
+##### Plot
 
 ```{r}
 # plot monthly PPT patterns from WorldClim2.1 data
@@ -165,63 +179,6 @@ ggsave(filename = here("figs", "2009-2019monthly_rainfall_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-## Compare WorldClim with Ongava Data
-
-### DungDecay Monthly means
-
-```{r}
-# compare monthly PPT from WorldClim2.1 data with rainguage data collected at Ongava during the dung decay experiment
-
-# Load the Ongava rainfall dataset
-ongava_ppt_2024_2025 <- read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
-
-# Convert date column to Date format
-ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
-  mutate(Date = mdy(Date),  # Use mdy() for "month/day/year" format
-         Year = year(Date),
-         Month = month(Date))
-
-# Aggregate daily rainfall to monthly totals
-monthly_rainfall_2024_2025 <- ongava_ppt_2024_2025 |>
-  group_by(Year, Month) |>
-  summarize(total_PPT = sum(CampusPPT, na.rm = TRUE), .groups = "drop")
-
-# Create the original plot
-monthly_rainfall_plot <- ggplot(monthly_precip_2010.2019, aes(x = Month)) +
-  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
-  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT, 
-                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 0.2) +
-  scale_x_continuous(breaks = 1:12) +
-  scale_y_continuous(expand = c(0, 0)) +
-  labs(x = "Month", y = "Precipitation (mm)", 
-       title = "Ongava WorldClim2.1 2009-2019 vs. Campus Rainfall") +
-  theme_classic()
-
-# Add observed rainfall as individual points with different symbols for each year
-monthly_rainfall_plot <- monthly_rainfall_plot +
-  geom_point(data = monthly_rainfall_2024_2025, 
-             aes(x = Month, y = total_PPT, shape = factor(Year)), size = 3) +
-  scale_shape_manual(name = "Year", values = seq(0, 9))  # Unique symbols for years
-
-# Add red text annotation in the middle of the plot
-monthly_rainfall_plot <- monthly_rainfall_plot +
-  annotate("text", x = 6.5, y = max(monthly_precip_2010.2019$mean_monthly_PPT, na.rm = TRUE) * 0.5, 
-           label = "data through 2025-04-03", color = "red", size = 4)
-
-# Display the plot
-print(monthly_rainfall_plot)
-
-# Save the updated plot
-ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
-       plot = monthly_rainfall_plot,
-       device = "jpeg",
-       width = 8, height = 6, dpi = 300)
-
-
-```
-
-### Monthly PPT (as percentage of rain year total)
-
 #### Rain year summary
 
 ```{r}
@@ -233,10 +190,11 @@ precip_data_2010.2019 <- precip_data_2010.2019 |>
 
 ```
 
-```{r}
-# Calculate for each month the percentage of the total PPT for that rainyear that fell in that month
+##### NOT WORKING: monthly PPT (as percentage of rainyear total)
 
-# Function to calculate the percentage of monthly precipitation out of the annual total
+```{r}
+
+# Function to calculate the percentage of monthly precipitation out of the annual rainyear total
 calculate_pct_annual_rainyr_PPT <- function(precip_data) {
   # Group data by year and calculate the annual total precipitation
   annual_totals <- precip_data_2010.2019 |>
@@ -245,7 +203,7 @@ calculate_pct_annual_rainyr_PPT <- function(precip_data) {
   
   # Join the annual totals back to the original data
   precip_data <- precip_data |>
-    left_join(annual_totals, by = "Year")
+    left_join(annual_totals, by = "rain_year")
   
   # Calculate the percentage of each month's precipitation out of the annual total
   precip_data <- precip_data |>
@@ -253,82 +211,17 @@ calculate_pct_annual_rainyr_PPT <- function(precip_data) {
   
   return(precip_data)
 }
-```
 
-```{r}
 # Apply the function to calculate monthly percent of total yearly rainfall the precip_data dataframe
 precip_data_2010.2019 <- calculate_pct_annual_rainyr_PPT(precip_data_2010.2019)
 
-```
-
-### Comparison with historical Ongava ppt data
-
-Import Ongava data from Dropbox\
-Note that these data are from Stuart Crawford via Rolf Becker. Stuart's email suggests that more data may be available from the Davis Weatherlink app. I didn't find any publicly available data from the app, but can look into this.
-
-```{r}
-# Import Ongave rainguage data using the corrected Dropbox URL for direct download
-url <- "https://www.dropbox.com/scl/fi/8r6u8lwu2llrow02wmtxq/OngavaRainData.csv?rlkey=0jycso3d15qudsoazzogwmcsg&dl=1"
-
-# Read the CSV file from the corrected URL
-Ongava_rainfall <- read.csv(url)
-
-# Join the annual totals back to the original data
-precip_data_2010.2019 <- precip_data_2010.2019 |>
-    left_join(Ongava_rainfall, by = "rain_year")
-```
-
-```{r}
-# Plot Ongava measured versus WorldClim rain_year data
-precip_data_2010.2019$rain_year <- 
-  factor(precip_data_2010.2019$rain_year, levels = unique(precip_data_2010.2019$rain_year))
-
-# Remove monthly data
-annual_rainfall_2010.2019 <- precip_data_2010.2019 |>
-    filter(Month == 1) |>
-    filter(rain_year != "2009-2010") |> # remove 2009-2010 since no 2009 data
-    filter(rain_year != "2019-2020") |> # remove 2019-2020 since no 2020 data
-    select(rain_year, Annual_PPT, OngavaMeasuredPPT)
-
-# calculate mean rain_year PPT for both data sources
-mean_WC_rainyr_ppt2010.2019 <- mean(
-  annual_rainfall_2010.2019$Annual_PPT, na.rm = TRUE)
-mean_Ong_rainyr_ppt2010.2019 <- mean(
-  annual_rainfall_2010.2019$OngavaMeasuredPPT, na.rm = TRUE)
-
-# plot the rainfall over time
-rainfall_comparison <- ggplot(annual_rainfall_2010.2019, aes(x = rain_year)) +
-  geom_line(aes(y = Annual_PPT, group = 1, 
-                color = "WorldClim2.1", linetype = "WorldClim2.1"), 
-            linewidth = 1) +
-  geom_line(aes(y = OngavaMeasuredPPT, group = 1, 
-                color = "Ongava rain gauge", linetype = "Ongava rain gauge"),
-            linewidth = 1) +
-  scale_color_manual(name = "Legend", values = c("WorldClim2.1" = "black", 
-            "Ongava rain gauge" = "red")) +
-  scale_linetype_manual(name = "Legend", values = c("WorldClim2.1" = "solid",              "Ongava rain gauge" = "dashed")) +
-  geom_hline(yintercept = mean_Ong_rainyr_ppt2010.2019, color = "red", 
-             linetype = "dotted", size = 1) + # line for mean rainfall PPT 
-  geom_hline(yintercept = mean_WC_rainyr_ppt2010.2019, color = "black", 
-             linetype = "dotted", size = 1) + # line for mean rainfall PPT 
-  labs(x = "Rain Year", y = "Precipitation (mm)", 
-       title = "") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top")
-rainfall_comparison
-
-ggsave(filename = here("figs", "Ongava_vs_WorldCLim_annualPPT.jpg"),
-       plot = rainfall_comparison,
-       device = "jpeg",
-       width = 8, height = 6, dpi = 300)
 ```
 
 ## 1960-2021 WorldClim Data
 
 It should be possible to pull data from UC Davis site but I have not been successful with this (looks like a web issue rather than coding issue). The alternative is to download the ENTIRE dataset (16 GB). I did this but extracted the monthly precip data from the geotiffs and deleted the geotiffs.
 
-### NOT WORKING: Download WorldClim Data
+### Download WorldClim Data - DO NOT RUN (USE DOWNLOADED DATA)
 
 DO NOT RUN THIS CHUNK – PULLS DATA FROM GEOTIFFS (NOW DELETED)
 
@@ -403,7 +296,7 @@ If needed, these can be redownloaded from <https://worldclim.org/data/monthlywth
 
 ### PPT Summaries (using saved data)
 
-The following chunks use saved data - ok to run!
+The following chunks use the saved data - ok to run!
 
 ```{r}
 
@@ -421,6 +314,8 @@ precip_data_1960.2021 <- precip_data_1960.2021 |>
 # Apply the function to the precip_data dataframe
 precip_data_1960.2021 <- calculate_pct_annual_PPT(precip_data_1960.2021)
 ```
+
+#### Summarize monthly PPT (1960-2021)
 
 ```{r}
 # Summarize mean monthly PPT for WorldClim data   
@@ -453,7 +348,7 @@ ggsave(filename = here("figs", "1960-2021monthly_rainfall_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-### Rain year summary
+#### NOT WORKING - Rain year summary
 
 ```{r}
 # Add the rain_year column to precip_data
@@ -462,6 +357,8 @@ precip_data_1960.2021 <- precip_data_1960.2021 |>
                             paste0(Year, "-", Year + 1),
                             paste0(Year - 1, "-", Year)))
 
+
+### NOT WORKING AFTER HERE
 # Apply the function to the precip_data dataframe
 precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT_1960.2021(precip_data_1960.2021)
 
@@ -469,6 +366,8 @@ precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT_1960.2021(precip_data_1
 precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT(precip_data_1960.2021)
 
 ```
+
+##### Plot
 
 ```{r}
 # Plot WorldClim rain_year data
@@ -507,7 +406,7 @@ ggsave(filename = here("figs", "1960.2021rainyear_PPT_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-### Rainyear histogram
+##### Rainyear histogram
 
 ```{r}
 rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Annual_rainyr_PPT)) +
@@ -519,9 +418,58 @@ rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Annual_rainyr_PP
 rainfall_histogram
 ```
 
-## PPT addition calculations
+### Extreme Rainfall Years - NOT WORKING
 
-### Monthly PPT Distribution
+```{r}
+# Explore patterns of extreme rainfall years through time
+
+# Calculate percentiles for: 
+# "normal rainfall" (0.45 and 0.55 percentiles)
+# "extreme low rainfall (0.10 percentile)
+# "extremely high rainfall" (0.90) percentile. 
+# These definitons are based on Knapp et al. 2015
+
+percentiles <- quantile(annual_rainfall_1960.2021$Annual_rainyr_PPT, probs = c(0.10, 0.45, 0.55, 0.90), na.rm = TRUE)
+```
+
+#### Plot
+
+```{r}
+# Create a plot with horizontal lines for the mean and percentiles
+rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021, 
+      aes(x = rain_year, y = Annual_rainyr_PPT, group = 1)) +
+  geom_line(linewidth = 1) +
+  # Add the mean line
+  geom_hline(yintercept = mean(
+    annual_rainfall_1960.2021$Annual_rainyr_PPT, na.rm = TRUE), 
+             color = "red", linetype = "dashed", size = 1) +
+  # Add the percentile lines
+  geom_hline(yintercept = percentiles[1], color = "blue", 
+             linetype = "dotted", size = 1) + # 10th percentile
+  geom_hline(yintercept = percentiles[2], color = "darkgreen", 
+             linetype = "dotted", size = 1) + # 45th percentile
+  geom_hline(yintercept = percentiles[3], color = "darkgreen", 
+             linetype = "dotted", size = 1) + # 55th percentile
+  geom_hline(yintercept = percentiles[4], color = "blue", 
+             linetype = "dotted", size = 1) + # 90th percentile
+  labs(x = "Rain Year", y = "Precipitation (mm)", 
+       title = "1960-2021 WorldClim2.1 w average and extreme rainfall") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top") +
+  scale_x_discrete(breaks = levels(
+    annual_rainfall_1960.2021$rain_year)[seq(1, length(
+      levels(annual_rainfall_1960.2021$rain_year)), by = 5)]) 
+rainfall_extremes_1960.2021
+
+ggsave(filename = here("figs", "1960.2021rainfall_extremes.jpg"),
+       plot = rainfall_1960.2021,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+
+```
+
+## WorldClim Comparison (2010-2019 vs 1960-2021)
 
 ```{r}
 # Comparison of recent (2010-2019) and longer-term (1960-2021) WorldClim data on monthly rainfall. This is to assess if there is an apparent change in distribution.
@@ -570,47 +518,72 @@ comparison_plot
 
 ```
 
+# Ongava historical PPT data
+
+Import Ongava data from Dropbox\
+Note that these data are from Stuart Crawford via Rolf Becker. Stuart's email suggests that more data may be available from the Davis Weatherlink app. I didn't find any publicly available data from the app, but can look into this.
+
 ```{r}
-# Explore patterns of extreme rainfall years through time
+# Import Ongave rainguage data using the corrected Dropbox URL for direct download
+url <- "https://www.dropbox.com/scl/fi/8r6u8lwu2llrow02wmtxq/OngavaRainData.csv?rlkey=0jycso3d15qudsoazzogwmcsg&dl=1"
 
-# Calculate percentiles for "normal rainfall" (0.45 and 0.55 percentiles), "extreme low rainfall (0.10 percentile), and "extremely high rainfall" (0.90) percentile. These definitons are based on Knapp et al. 2015
-percentiles <- quantile(annual_rainfall_1960.2021$Annual_rainyr_PPT, probs = c(0.10, 0.45, 0.55, 0.90), na.rm = TRUE)
+# Read the CSV file from the corrected URL
+Ongava_rainfall <- read.csv(url)
 
-# Create a plot with horizontal lines for the mean and percentiles
-rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021, 
-      aes(x = rain_year, y = Annual_rainyr_PPT, group = 1)) +
-  geom_line(linewidth = 1) +
-  # Add the mean line
-  geom_hline(yintercept = mean(
-    annual_rainfall_1960.2021$Annual_rainyr_PPT, na.rm = TRUE), 
-             color = "red", linetype = "dashed", size = 1) +
-  # Add the percentile lines
-  geom_hline(yintercept = percentiles[1], color = "blue", 
-             linetype = "dotted", size = 1) + # 10th percentile
-  geom_hline(yintercept = percentiles[2], color = "darkgreen", 
-             linetype = "dotted", size = 1) + # 45th percentile
-  geom_hline(yintercept = percentiles[3], color = "darkgreen", 
-             linetype = "dotted", size = 1) + # 55th percentile
-  geom_hline(yintercept = percentiles[4], color = "blue", 
-             linetype = "dotted", size = 1) + # 90th percentile
-  labs(x = "Rain Year", y = "Precipitation (mm)", 
-       title = "1960-2021 WorldClim2.1 w average and extreme rainfall") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top") +
-  scale_x_discrete(breaks = levels(
-    annual_rainfall_1960.2021$rain_year)[seq(1, length(
-      levels(annual_rainfall_1960.2021$rain_year)), by = 5)]) 
-rainfall_extremes_1960.2021
-
-ggsave(filename = here("figs", "1960.2021rainfall_extremes.jpg"),
-       plot = rainfall_1960.2021,
-       device = "jpeg",
-       width = 8, height = 6, dpi = 300)
-
+# Join the annual totals back to the original data
+precip_data_2010.2019 <- precip_data_2010.2019 |>
+    left_join(Ongava_rainfall, by = "rain_year")
 ```
 
-Rainfall additions
+### Ongava vs WorldClim data
+
+```{r}
+# Plot Ongava measured versus WorldClim rain_year data
+precip_data_2010.2019$rain_year <- 
+  factor(precip_data_2010.2019$rain_year, levels = unique(precip_data_2010.2019$rain_year))
+
+# Remove monthly data
+annual_rainfall_2010.2019 <- precip_data_2010.2019 |>
+    filter(Month == 1) |>
+    filter(rain_year != "2009-2010") |> # remove 2009-2010 since no 2009 data
+    filter(rain_year != "2019-2020") |> # remove 2019-2020 since no 2020 data
+    select(rain_year, Annual_PPT, OngavaMeasuredPPT)
+
+# calculate mean rain_year PPT for both data sources
+mean_WC_rainyr_ppt2010.2019 <- mean(
+  annual_rainfall_2010.2019$Annual_PPT, na.rm = TRUE)
+mean_Ong_rainyr_ppt2010.2019 <- mean(
+  annual_rainfall_2010.2019$OngavaMeasuredPPT, na.rm = TRUE)
+
+# plot the rainfall over time
+rainfall_comparison <- ggplot(annual_rainfall_2010.2019, aes(x = rain_year)) +
+  geom_line(aes(y = Annual_PPT, group = 1, 
+                color = "WorldClim2.1", linetype = "WorldClim2.1"), 
+            linewidth = 1) +
+  geom_line(aes(y = OngavaMeasuredPPT, group = 1, 
+                color = "Ongava rain gauge", linetype = "Ongava rain gauge"),
+            linewidth = 1) +
+  scale_color_manual(name = "Legend", values = c("WorldClim2.1" = "black", 
+            "Ongava rain gauge" = "red")) +
+  scale_linetype_manual(name = "Legend", values = c("WorldClim2.1" = "solid",              "Ongava rain gauge" = "dashed")) +
+  geom_hline(yintercept = mean_Ong_rainyr_ppt2010.2019, color = "red", 
+             linetype = "dotted", size = 1) + # line for mean rainfall PPT 
+  geom_hline(yintercept = mean_WC_rainyr_ppt2010.2019, color = "black", 
+             linetype = "dotted", size = 1) + # line for mean rainfall PPT 
+  labs(x = "Rain Year", y = "Precipitation (mm)", 
+       title = "") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top")
+rainfall_comparison
+
+ggsave(filename = here("figs", "Ongava_vs_WorldCLim_annualPPT.jpg"),
+       plot = rainfall_comparison,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+```
+
+# PPT Addition Calculations
 
 ```{r}
 # calculate monthly PPT addition (mm) if we add the mean rainfall on top of ambient rainfall
@@ -635,7 +608,57 @@ monthly_PPT_additions <- monthly_precip_1960.2021 |>
 write.csv(monthly_PPT_additions, file = here(
   "output", "monthly_PPT_additions.csv"), row.names = FALSE)
 
+```
 
+# Ongava Contemporary Data
 
+### 2024-5 Monthly means vs historical WorldClim
 
+```{r}
+# compare monthly PPT from WorldClim2.1 data with rainguage data collected at Ongava during the dung decay experiment
+
+# Load the Ongava rainfall dataset
+ongava_ppt_2024_2025 <- read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
+
+# Convert date column to Date format
+ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
+  mutate(Date = mdy(Date),  # Use mdy() for "month/day/year" format
+         Year = year(Date),
+         Month = month(Date))
+
+# Aggregate daily rainfall to monthly totals
+monthly_rainfall_2024_2025 <- ongava_ppt_2024_2025 |>
+  group_by(Year, Month) |>
+  summarize(total_PPT = sum(CampusPPT, na.rm = TRUE), .groups = "drop")
+
+# Create the original plot
+monthly_rainfall_plot <- ggplot(monthly_precip_2010.2019, aes(x = Month)) +
+  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT, 
+                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 0.2) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "Month", y = "Precipitation (mm)", 
+       title = "Ongava WorldClim2.1 2009-2019 vs. Campus Rainfall") +
+  theme_classic()
+
+# Add observed rainfall as individual points with different symbols for each year
+monthly_rainfall_plot <- monthly_rainfall_plot +
+  geom_point(data = monthly_rainfall_2024_2025, 
+             aes(x = Month, y = total_PPT, shape = factor(Year)), size = 3) +
+  scale_shape_manual(name = "Year", values = seq(0, 9))  # Unique symbols for years
+
+# Add red text annotation in the middle of the plot
+monthly_rainfall_plot <- monthly_rainfall_plot +
+  annotate("text", x = 6.5, y = max(monthly_precip_2010.2019$mean_monthly_PPT, na.rm = TRUE) * 0.5, 
+           label = "data through 2025-04-03", color = "red", size = 4)
+
+# Display the plot
+print(monthly_rainfall_plot)
+
+# Save the updated plot
+ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
+       plot = monthly_rainfall_plot,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
 ```
