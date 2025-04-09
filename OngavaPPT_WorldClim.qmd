@@ -101,13 +101,16 @@ get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
 }
 
 # Get WorldClim2.1 data for the specified location and date range
-precip_data_2010.2019 <- get_WorldClim2_data(lat, lon, start_year, end_year, data_dir)
+precip_data_2010.2019 <- 
+  get_WorldClim2_data(lat, lon, start_year, end_year, data_dir)
 
 # Display the summary of the data
 print(summary(precip_data_2010.2019))
 
 # Save the precip_data dataframe as a CSV file to Dropbox
-write.csv(precip_data_2010.2019, file = file.path(dropbox_path, "precip_data_2010.2019.csv"), 
+write.csv(precip_data_2010.2019, 
+          file = file.path(dropbox_path, 
+                           "precip_data_2010.2019.csv"), 
           row.names = FALSE)
 
 ```
@@ -142,7 +145,8 @@ calculate_pct_annual_PPT <- function(precip_data) {
 # Apply the function created above to do this, creating two new variables:
 # Annual_PPT 
 # pct_annual_PPT
-precip_data_2010.2019 <- calculate_pct_annual_PPT(precip_data_2010.2019)
+precip_data_2010.2019 <- 
+  calculate_pct_annual_PPT(precip_data_2010.2019)
 ```
 
 #### Summarize monthly PPT (2010-2019)
@@ -151,7 +155,8 @@ precip_data_2010.2019 <- calculate_pct_annual_PPT(precip_data_2010.2019)
 # Summarize mean monthly PPT for WorldClim data   
 monthly_precip_2010.2019 <- precip_data_2010.2019 |>
     group_by(Month) |>
-    summarise(mean_monthly_PPT = mean(Precipitation, na.rm = TRUE),
+    summarise(mean_monthly_PPT = mean(Precipitation, 
+                                      na.rm = TRUE),
               N = n(),
               sd_monthly_PPT = sd(Precipitation),
               se_monthly_PPT = sd_monthly_PPT / sqrt(N))
@@ -182,7 +187,7 @@ ggsave(filename = here("figs", "2009-2019monthly_rainfall_plot.jpg"),
 #### Rain year summary
 
 ```{r}
-# Add the rain_year column to precip_data
+# Add the rain_year column to precip_data_2010.2019
 precip_data_2010.2019 <- precip_data_2010.2019 |>
   mutate(rain_year = ifelse(Month >= 9 & Month <= 12, 
                             paste0(Year, "-", Year + 1),
@@ -190,25 +195,24 @@ precip_data_2010.2019 <- precip_data_2010.2019 |>
 
 ```
 
-##### NOT WORKING: monthly PPT (as percentage of rainyear total)
+##### Monthly PPT (as percentage of rainyear total)
 
 ```{r}
-
 # Function to calculate the percentage of monthly precipitation out of the annual rainyear total
 calculate_pct_annual_rainyr_PPT <- function(precip_data) {
-  # Group data by year and calculate the annual total precipitation
-  annual_totals <- precip_data_2010.2019 |>
+  # Group data by rain_year and calculate the total rain_year precipitation
+  rainyr_totals <- precip_data |>
     group_by(rain_year) |>
-    summarise(Annual_PPT = sum(Precipitation, na.rm = TRUE))
+    summarise(Rainyr_PPT = sum(Precipitation, na.rm = TRUE))
   
   # Join the annual totals back to the original data
   precip_data <- precip_data |>
-    left_join(annual_totals, by = "rain_year")
+    left_join(rainyr_totals, by = "rain_year")
   
-  # Calculate the percentage of each month's precipitation out of the annual total
+  # Calculate the percentage of each month's precipitation out of the rainyr total
   precip_data <- precip_data |>
-    mutate(pct_annual_PPT = (Precipitation / Annual_PPT) * 100)
-  
+    mutate(pct_rainyr_PPT = 
+             (Precipitation / Rainyr_PPT) * 100)
   return(precip_data)
 }
 
@@ -312,7 +316,12 @@ precip_data_1960.2021 <- precip_data_1960.2021 |>
 
 # For the WorldClim data at Ongava, calculate for each month the percentage of the total PPT for that year that fell in that month. Use the function from above.
 # Apply the function to the precip_data dataframe
-precip_data_1960.2021 <- calculate_pct_annual_PPT(precip_data_1960.2021)
+precip_data_1960.2021 <- 
+  calculate_pct_annual_PPT(precip_data_1960.2021)
+
+# Apply the function to calculate monthly percent of total yearly rainfall the precip_data dataframe
+precip_data_1960.2021 <- 
+  calculate_pct_annual_rainyr_PPT(precip_data_1960.2021)
 ```
 
 #### Summarize monthly PPT (1960-2021)
@@ -327,6 +336,8 @@ monthly_precip_1960.2021 <- precip_data_1960.2021 |>
               se_monthly_PPT = sd_monthly_PPT / sqrt(N))
  
 ```
+
+##### Plot monthly PPT means
 
 ```{r}
 # plot monthly PPT patterns from WorldClim2.1 data
@@ -348,26 +359,7 @@ ggsave(filename = here("figs", "1960-2021monthly_rainfall_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-#### NOT WORKING - Rain year summary
-
-```{r}
-# Add the rain_year column to precip_data
-precip_data_1960.2021 <- precip_data_1960.2021 |>
-  mutate(rain_year = ifelse(Month >= 9 & Month <= 12, 
-                            paste0(Year, "-", Year + 1),
-                            paste0(Year - 1, "-", Year)))
-
-
-### NOT WORKING AFTER HERE
-# Apply the function to the precip_data dataframe
-precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT_1960.2021(precip_data_1960.2021)
-
-# Apply the function to calculate monthly percent of total yearly rainfall the precip_data dataframe
-precip_data_1960.2021 <- calculate_pct_annual_rainyr_PPT(precip_data_1960.2021)
-
-```
-
-##### Plot
+##### NOT WORKING Plot 
 
 ```{r}
 # Plot WorldClim rain_year data
@@ -406,7 +398,7 @@ ggsave(filename = here("figs", "1960.2021rainyear_PPT_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-##### Rainyear histogram
+##### NOT WORKING  Rainyear histogram
 
 ```{r}
 rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Annual_rainyr_PPT)) +
@@ -663,19 +655,17 @@ ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-Plot rainfall additions
+### Cumulative rainfall during experiment
 
 ```{r}
-# 
-
-# Load the Ongava rainfall dataset
+# Load the Ongava rainfall manipulation data 
 ongava_ppt_additions <- read_csv("https://www.dropbox.com/scl/fi/upcwvh9jutv6605axzpio/OngavaWatering_actual.csv?rlkey=4plvmvhbnk7dxjdz986wc0f9z&dl=1")
 
 # Convert date column to Date format
 ongava_ppt_additions <- ongava_ppt_additions |>
   mutate(Date = mdy(Date))
 
-# Join the rainfall data with the PPT addition data 
+# Join the rainfall data (contemporary rain gauges) with the PPT addition data 
 ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
     left_join(ongava_ppt_additions, by = "Date")
 
@@ -684,18 +674,24 @@ ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
 plotarea <- 3.14159*0.5^2
 # a 1 mm PPT event is equivalent to application of 0.785 L added to each plot
 ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
-  mutate(PPT_addition_mm_planned = (PPT_addition_L_planned * 1/plotarea),
-         PPT_addition_mm_planned = ifelse(is.na(PPT_addition_mm_planned), 
-                                          0, PPT_addition_mm_planned), # replace NA with 0
-         PPT_addition_mm_actual = (PPT_addition_L_actual * 1/plotarea),
-         PPT_addition_mm_actual = ifelse(is.na(PPT_addition_mm_actual), 
-                                          0, PPT_addition_mm_actual), # replace NA with 0
-         Control_PPT_mm = rowMeans(across(c(CampusPPT, OfficePPT)), na.rm = TRUE), 
-         #mean of Office and Campus PPT
-         Addition_PPT_mm_actual = rowSums(across(c(Control_PPT_mm, 
-                                                   PPT_addition_mm_actual)), na.rm = TRUE),
-         Addition_PPT_mm_planned = rowSums(across(c(Control_PPT_mm, 
-                                                   PPT_addition_mm_planned)), na.rm = TRUE),)
+  mutate(PPT_addition_mm_planned = 
+           (PPT_addition_L_planned * 1/plotarea),
+         PPT_addition_mm_planned = 
+           ifelse(is.na(PPT_addition_mm_planned), 
+                0, PPT_addition_mm_planned), # replace NA with 0
+         PPT_addition_mm_actual = 
+           (PPT_addition_L_actual * 1/plotarea),
+         PPT_addition_mm_actual = 
+           ifelse(is.na(PPT_addition_mm_actual), 
+                0, PPT_addition_mm_actual), # replace NA with 0
+         Control_PPT_mm = rowMeans(across(
+           c(CampusPPT, OfficePPT)), na.rm = TRUE), 
+       #mean of Office and Campus PPT
+         Addition_PPT_mm_actual = 
+           rowSums(across(c(Control_PPT_mm, 
+                    PPT_addition_mm_actual)), na.rm = TRUE),
+         Addition_PPT_mm_planned = 
+           rowSums(across(c(Control_PPT_mm,                    PPT_addition_mm_planned)), na.rm = TRUE),)
 
 # Create the plot for cumulative precipitation 
 # Calculate cumulative precipitation
@@ -716,17 +712,10 @@ ggplot(ongava_ppt_2024_2025, aes(x = Date)) +
        color = "Legend") +
   theme_minimal()
 
-ggsave(filename = here("figs", "cumulative_precipitation_plot.jpg"),
+# save the plot
+ggsave(filename = 
+         here("figs", "cumulative_precipitation_plot.jpg"),
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
-
-
-
-# Define the full path to save the plot
-#plot_path <- file.path(dropbox_path, "cumulative_precipitation_plot.png")
-
-# Save the last ggplot to the specified path
-#ggsave(plot_path, width = 10, height = 6, dpi = 300)
-
 
 ```
