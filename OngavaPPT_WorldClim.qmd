@@ -15,6 +15,10 @@ Data are read in from Dropbox, with the exception of WorldClim geotiffs that are
 Output csv data are saved in Dropbox.\
 Output figures are saved in the Github repo (along with this script).
 
+TODO: \
+- Check if partial rain years should be removed from WorldClim data. \
+- Plot Ongava decomp experiment data on a more reasonable x-axis (2024-2026)
+
 # Set Up
 
 ```{r}
@@ -163,7 +167,7 @@ monthly_precip_2010.2019 <- precip_data_2010.2019 |>
  
 ```
 
-##### Plot
+##### Plot monthly PPT
 
 ```{r}
 # plot monthly PPT patterns from WorldClim2.1 data
@@ -359,7 +363,7 @@ ggsave(filename = here("figs", "1960-2021monthly_rainfall_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-##### NOT WORKING Plot 
+##### Plot rainyr PPT
 
 ```{r}
 # Plot WorldClim rain_year data
@@ -370,15 +374,15 @@ precip_data_1960.2021$rain_year <-
 # Remove monthly data
 annual_rainfall_1960.2021 <- precip_data_1960.2021 |>
     filter(Month == 1) |>
-    select(rain_year, Annual_rainyr_PPT)
+    select(rain_year, Rainyr_PPT)
 
 # calculate mean rain_year PPT for the duration of the dataset
-mean_rainyr_ppt <- mean(annual_rainfall_1960.2021$Annual_rainyr_PPT, 
+mean_rainyr_ppt <- mean(annual_rainfall_1960.2021$Rainyr_PPT, 
                         na.rm = TRUE)
 
 # make the plot
 rainfall_1960.2021 <- ggplot(annual_rainfall_1960.2021, 
-        aes(x = rain_year, y = Annual_rainyr_PPT, group = 1)) +
+        aes(x = rain_year, y = Rainyr_PPT, group = 1)) +
   geom_line(linewidth = 1) +
   labs(x = "Rain Year", y = "Precipitation (mm)", 
        title = "WorldClim2.1: Ongava Research Centre") +
@@ -398,10 +402,10 @@ ggsave(filename = here("figs", "1960.2021rainyear_PPT_plot.jpg"),
        width = 8, height = 6, dpi = 300)
 ```
 
-##### NOT WORKING  Rainyear histogram
+##### Rainyear histogram
 
 ```{r}
-rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Annual_rainyr_PPT)) +
+rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Rainyr_PPT)) +
   geom_histogram(binwidth = 10, fill = "steelblue", color = "black") +
   labs(x = "Annual Rain Year Precipitation (mm)", y = "Count of Rain Years", 
        title = "Distribution of Rain Years by Annual Precipitation") +
@@ -421,7 +425,8 @@ rainfall_histogram
 # "extremely high rainfall" (0.90) percentile. 
 # These definitons are based on Knapp et al. 2015
 
-percentiles <- quantile(annual_rainfall_1960.2021$Annual_rainyr_PPT, probs = c(0.10, 0.45, 0.55, 0.90), na.rm = TRUE)
+percentiles <- quantile(annual_rainfall_1960.2021$Rainyr_PPT, 
+                        probs = c(0.10, 0.45, 0.55, 0.90), na.rm = TRUE)
 ```
 
 #### Plot
@@ -429,11 +434,11 @@ percentiles <- quantile(annual_rainfall_1960.2021$Annual_rainyr_PPT, probs = c(0
 ```{r}
 # Create a plot with horizontal lines for the mean and percentiles
 rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021, 
-      aes(x = rain_year, y = Annual_rainyr_PPT, group = 1)) +
+      aes(x = rain_year, y = Rainyr_PPT, group = 1)) +
   geom_line(linewidth = 1) +
   # Add the mean line
   geom_hline(yintercept = mean(
-    annual_rainfall_1960.2021$Annual_rainyr_PPT, na.rm = TRUE), 
+    annual_rainfall_1960.2021$Rainyr_PPT, na.rm = TRUE), 
              color = "red", linetype = "dashed", size = 1) +
   # Add the percentile lines
   geom_hline(yintercept = percentiles[1], color = "blue", 
