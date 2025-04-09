@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.450">
+<meta name="generator" content="quarto-1.5.57">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -23,7 +23,7 @@ ul.task-list li input[type="checkbox"] {
 }
 /* CSS for syntax highlighting */
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -34,7 +34,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
   { counter-reset: source-line 0; }
@@ -99,13 +99,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </div>
   
 
+
 </header>
+
 
 <p>Data compilation of Kestrel data from Ongava for the decomposition experiment (2024-2026)</p>
 <section id="overview" class="level1">
 <h1>Overview</h1>
 <p>This script reads in csv files from individual Kestrel loggers, merges the files, and synthesizes the data.</p>
-<p>Created January 24, 2025 Heather Throop</p>
+<p>Created January 24, 2025 Heather Throop<br>
+Updated with new data 2025-03-19, 2025-04-09</p>
 <p>To run this code, all raw Kestrel files should be placed within the “L0” folder for this project on Dropbox. This code pulls data from the Dropbox folder (currently mapped to HT’s local drive as API token for Dropbox folder pull not working).</p>
 <p>Install Packages</p>
 <div class="cell">
@@ -118,9 +121,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.3     ✔ readr     2.1.4
+✔ dplyr     1.1.4     ✔ readr     2.1.5
 ✔ forcats   1.0.0     ✔ tibble    3.2.1
-✔ ggplot2   3.4.3     ✔ tidyr     1.3.0
+✔ ggplot2   3.5.1     ✔ tidyr     1.3.1
 ✔ lubridate 1.9.3     </code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
@@ -148,13 +151,13 @@ The following object is masked from 'package:purrr':
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>R version 4.3.2 (2023-10-31)
-Platform: x86_64-apple-darwin20 (64-bit)
+<pre><code>R version 4.4.0 (2024-04-24)
+Platform: x86_64-apple-darwin20
 Running under: macOS Monterey 12.6
 
 Matrix products: default
-BLAS:   /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRblas.0.dylib 
-LAPACK: /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
+BLAS:   /Library/Frameworks/R.framework/Versions/4.4-x86_64/Resources/lib/libRblas.0.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.4-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
 
 locale:
 [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
@@ -166,20 +169,20 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
- [1] scales_1.2.1    lubridate_1.9.3 forcats_1.0.0   dplyr_1.1.3    
- [5] readr_2.1.4     tidyr_1.3.0     tibble_3.2.1    ggplot2_3.4.3  
- [9] tidyverse_2.0.0 purrr_1.0.2     stringr_1.5.0   here_1.0.1     
+ [1] scales_1.3.0    lubridate_1.9.3 forcats_1.0.0   dplyr_1.1.4    
+ [5] readr_2.1.5     tidyr_1.3.1     tibble_3.2.1    ggplot2_3.5.1  
+ [9] tidyverse_2.0.0 purrr_1.0.2     stringr_1.5.1   here_1.0.1     
 
 loaded via a namespace (and not attached):
- [1] gtable_0.3.4      jsonlite_1.8.9    compiler_4.3.2    tidyselect_1.2.0 
- [5] yaml_2.3.7        fastmap_1.1.1     R6_2.5.1          generics_0.1.3   
- [9] knitr_1.44        htmlwidgets_1.6.2 munsell_0.5.0     rprojroot_2.0.4  
-[13] tzdb_0.4.0        pillar_1.9.0      rlang_1.1.2       utf8_1.2.4       
-[17] stringi_1.7.12    xfun_0.40         timechange_0.2.0  cli_3.6.1        
-[21] withr_2.5.2       magrittr_2.0.3    digest_0.6.33     grid_4.3.2       
-[25] rstudioapi_0.15.0 hms_1.1.3         lifecycle_1.0.4   vctrs_0.6.4      
-[29] evaluate_0.23     glue_1.6.2        fansi_1.0.5       colorspace_2.1-0 
-[33] rmarkdown_2.25    tools_4.3.2       pkgconfig_2.0.3   htmltools_0.5.6  </code></pre>
+ [1] gtable_0.3.5      jsonlite_1.8.8    compiler_4.4.0    tidyselect_1.2.1 
+ [5] yaml_2.3.8        fastmap_1.2.0     R6_2.5.1          generics_0.1.3   
+ [9] knitr_1.46        htmlwidgets_1.6.4 munsell_0.5.1     rprojroot_2.0.4  
+[13] tzdb_0.4.0        pillar_1.9.0      rlang_1.1.3       utf8_1.2.4       
+[17] stringi_1.8.4     xfun_0.44         timechange_0.3.0  cli_3.6.2        
+[21] withr_3.0.0       magrittr_2.0.3    digest_0.6.35     grid_4.4.0       
+[25] rstudioapi_0.16.0 hms_1.1.3         lifecycle_1.0.4   vctrs_0.6.5      
+[29] evaluate_0.23     glue_1.7.0        fansi_1.0.6       colorspace_2.1-0 
+[33] rmarkdown_2.26    tools_4.4.0       pkgconfig_2.0.3   htmltools_0.5.8.1</code></pre>
 </div>
 </div>
 </section>
@@ -226,9 +229,46 @@ Much of this code is based on the commentary from: https://aosmith.rbind.io/2017
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>combined_kestrel_notcleaned <span class="ot">=</span> <span class="fu">map_dfr</span>(allfiles, read_fun) <span class="co"># combine all the files</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning in .f(.x[[i]], ...): NAs introduced by coercion
-
 Warning in .f(.x[[i]], ...): NAs introduced by coercion
-
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
+Warning in .f(.x[[i]], ...): NAs introduced by coercion
 Warning in .f(.x[[i]], ...): NAs introduced by coercion</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># check that we have the right number of loggers in the file</span></span>
@@ -239,15 +279,15 @@ Warning in .f(.x[[i]], ...): NAs introduced by coercion</code></pre>
 <pre><code># A tibble: 9 × 2
   loggerID     n
      &lt;dbl&gt; &lt;int&gt;
-1  2592687  1005
-2  2592691   839
-3  2605738   839
-4  2605739   839
-5  2605740   824
-6  2605741  7683
+1  2592687  4287
+2  2592691  5130
+3  2605738  4863
+4  2605739  3575
+5  2605740  3776
+6  2605741 24037
 7  2605746   839
-8  2605748   839
-9  2605749   839</code></pre>
+8  2605748  3124
+9  2605749  5112</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add in microsite and block information</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="do">### pulls in file with loggerID information ("KestrelLoggerAssignments")</span></span>
@@ -302,30 +342,31 @@ Warning in .f(.x[[i]], ...): NAs introduced by coercion</code></pre>
 <span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a><span class="co"># remove any data before the deployment date</span></span>
 <span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">NOTE</span><span class="co"> THAT THE DATE MAY NEED TO BE ADJUSTED - PLACE THE DESIRED START DATE BELOW</span></span>
-<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a><span class="co">#L1_kestrel_data &lt;-combined_kestrel_notcleaned[combined_kestrel_notcleaned[["time"]] #&gt;= "2024-12-18", ]  </span></span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a><span class="do">#### added end point since one logger was left logging longer than the others (Januray 2025 - first download)</span></span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="ot">&lt;-</span> combined_kestrel_cleaning[</span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>  combined_kestrel_cleaning[[<span class="st">"time"</span>]] <span class="sc">&gt;=</span> <span class="st">"2024-12-18"</span> <span class="sc">&amp;</span> </span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>  combined_kestrel_cleaning[[<span class="st">"time"</span>]] <span class="sc">&lt;=</span> <span class="st">"2025-01-14"</span>, </span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Check that all loggers are still present</span></span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="sc">|&gt;</span></span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(loggerID) <span class="sc">|&gt;</span> </span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="ot">&lt;-</span>combined_kestrel_cleaning[combined_kestrel_cleaning</span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>                                              [[<span class="st">"time"</span>]] <span class="sc">&gt;=</span> <span class="st">"2024-12-18"</span>, ]  </span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a><span class="do">#### added end point since one logger was left logging longer than the others (January 2025 - first download)</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a><span class="co">#L1_kestrel_data &lt;- combined_kestrel_cleaning[</span></span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a><span class="co">#  combined_kestrel_cleaning[["time"]] &gt;= "2024-12-18" &amp; </span></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a><span class="co">#  combined_kestrel_cleaning[["time"]] &lt;= "2025-01-14", </span></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a><span class="co">#]</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Check that all loggers are still present</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>L1_kestrel_data <span class="sc">|&gt;</span></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(loggerID) <span class="sc">|&gt;</span> </span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 9 × 2
   loggerID     n
      &lt;dbl&gt; &lt;int&gt;
-1  2592687   649
-2  2592691   647
-3  2605738   647
-4  2605739   647
-5  2605740   632
-6  2605741   647
+1  2592687  3711
+2  2592691  4554
+3  2605738  4287
+4  2605739  3190
+5  2605740  3200
+6  2605741  4435
 7  2605746   647
-8  2605748   647
-9  2605749   647</code></pre>
+8  2605748  2548
+9  2605749  4536</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">#save the output as a .csv file</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(L1_kestrel_data, <span class="at">file =</span> <span class="fu">file.path</span>(</span>
@@ -352,7 +393,11 @@ Warning in .f(.x[[i]], ...): NAs introduced by coercion</code></pre>
 <span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(loggerID <span class="sc">~</span> .) </span>
 <span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>p1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Ongava_Kestrel_compilation_files/figure-html/RH-plot-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/RH-plot-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the plot as a JPG in the "figs" folder</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">"figs/RH_all_loggers.jpg"</span>, <span class="at">plot =</span> p1, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -371,7 +416,11 @@ Warning in .f(.x[[i]], ...): NAs introduced by coercion</code></pre>
 <span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(loggerID <span class="sc">~</span> .) </span>
 <span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>p2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Ongava_Kestrel_compilation_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the plot as a JPG in the "figs" folder</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">"figs/temperature_all_loggers.jpg"</span>, <span class="at">plot =</span> p2, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -419,7 +468,11 @@ using the `.groups` argument.</code></pre>
 <span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Addition"</span> <span class="ot">=</span> <span class="st">"solid"</span>, <span class="st">"Ctrl"</span> <span class="ot">=</span> <span class="st">"dashed"</span>))  </span>
 <span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>p3</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Ongava_Kestrel_compilation_files/figure-html/RH-by-treatment-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/RH-by-treatment-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the plot as a JPG in the "figs" folder</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">"figs/RH_by_trt.jpg"</span>, <span class="at">plot =</span> p3, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -440,7 +493,11 @@ using the `.groups` argument.</code></pre>
 <span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Addition"</span> <span class="ot">=</span> <span class="st">"solid"</span>, <span class="st">"Ctrl"</span> <span class="ot">=</span> <span class="st">"dashed"</span>))</span>
 <span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>p4</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Ongava_Kestrel_compilation_files/figure-html/temperature-by-treatment-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Ongava_Kestrel_compilation_files/figure-html/temperature-by-treatment-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the plot as a JPG in the "figs" folder</span></span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">"figs/temperature_by_trt.jpg"</span>, <span class="at">plot =</span> p4, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -486,18 +543,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
     return false;
   }
-  const clipboard = new window.ClipboardJS('.code-copy-button', {
-    text: function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-  });
-  clipboard.on('success', function(e) {
+  const onCopySuccess = function(e) {
     // button target
     const button = e.trigger;
     // don't keep focus
@@ -529,11 +575,50 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }, 1000);
     // clear code selection
     e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
   });
-  function tippyHover(el, contentFn) {
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
-      content: contentFn,
       maxWidth: 500,
       delay: 100,
       arrow: false,
@@ -543,8 +628,17 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       interactive: true,
       interactiveBorder: 10,
       theme: 'quarto',
-      placement: 'bottom-start'
+      placement: 'bottom-start',
     };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
     window.tippy(el, config); 
   }
   const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
@@ -556,7 +650,130 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
     });
   }
       let selectedAnnoteEl;
@@ -600,6 +817,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
             }
             div.style.top = top - 2 + "px";
             div.style.height = height + 4 + "px";
+            div.style.left = 0;
             let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
             if (gutterDiv === null) {
               gutterDiv = window.document.createElement("div");
@@ -625,6 +843,32 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         });
         selectedAnnoteEl = undefined;
       };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
       // Attach click handler to the DT
       const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
       for (const annoteDlNode of annoteDls) {
@@ -685,6 +929,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 });
 </script>
 </div> <!-- /content -->
+
 
 
 

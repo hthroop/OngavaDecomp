@@ -15,9 +15,8 @@ Data are read in from Dropbox, with the exception of WorldClim geotiffs that are
 Output csv data are saved in Dropbox.\
 Output figures are saved in the Github repo (along with this script).
 
-TODO: \
-- Check if partial rain years should be removed from WorldClim data. \
-- Plot Ongava decomp experiment data on a more reasonable x-axis (2024-2026)
+TODO:\
+- Check if partial rainyears should be removed from WorldClim data.\
 
 # Set Up
 
@@ -282,12 +281,12 @@ If needed, these can be redownloaded from <https://worldclim.org/data/monthlywth
  #       warning(paste("File not found:", file_path))
         # Append NA for missing file
 #        precip_data <- rbind(precip_data, data.frame(Year = year, Month = month, Precipitation = NA))
-      }
-    }
-  }
+ #     }
+#    }
+#  }
   
 #  return(precip_data)
-}
+#}
 
 # Get WorldClim2.1 data for the specified location and date range
 #precip_data_1960.2021 <- get_WorldClim2_data(latitude, longitude, start_year, end_year, data_dir)
@@ -414,7 +413,7 @@ rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Rainyr_PPT)) +
 rainfall_histogram
 ```
 
-### Extreme Rainfall Years - NOT WORKING
+### Extreme Rainfall Years
 
 ```{r}
 # Explore patterns of extreme rainfall years through time
@@ -615,7 +614,8 @@ write.csv(monthly_PPT_additions, file = here(
 # compare monthly PPT from WorldClim2.1 data with rainguage data collected at Ongava during the dung decay experiment
 
 # Load the Ongava rainfall dataset
-ongava_ppt_2024_2025 <- read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
+ongava_ppt_2024_2025 <- 
+  read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
 
 # Convert date column to Date format
 ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
@@ -628,36 +628,59 @@ monthly_rainfall_2024_2025 <- ongava_ppt_2024_2025 |>
   group_by(Year, Month) |>
   summarize(total_PPT = sum(CampusPPT, na.rm = TRUE), .groups = "drop")
 
-# Create the original plot
-monthly_rainfall_plot <- ggplot(monthly_precip_2010.2019, aes(x = Month)) +
-  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
-  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT, 
-                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 0.2) +
-  scale_x_continuous(breaks = 1:12) +
-  scale_y_continuous(expand = c(0, 0)) +
-  labs(x = "Month", y = "Precipitation (mm)", 
-       title = "Ongava WorldClim2.1 2009-2019 vs. Campus Rainfall") +
-  theme_classic()
+# Create full date range and join with climatology
+date_seq <- seq(as.Date("2024-06-01"), as.Date("2026-05-01"), by = "month")
+date_df <- data.frame(Date = date_seq)
+date_df$Month <- as.numeric(format(date_df$Date, "%m"))
 
-# Add observed rainfall as individual points with different symbols for each year
-monthly_rainfall_plot <- monthly_rainfall_plot +
-  geom_point(data = monthly_rainfall_2024_2025, 
-             aes(x = Month, y = total_PPT, shape = factor(Year)), size = 3) +
-  scale_shape_manual(name = "Year", values = seq(0, 9))  # Unique symbols for years
+climatology_df <- monthly_precip_2010.2019[, c("Month", "mean_monthly_PPT", "se_monthly_PPT")]
+climatology_repeated <- left_join(date_df, climatology_df, by = "Month")
 
-# Add red text annotation in the middle of the plot
-monthly_rainfall_plot <- monthly_rainfall_plot +
-  annotate("text", x = 6.5, y = max(monthly_precip_2010.2019$mean_monthly_PPT, na.rm = TRUE) * 0.5, 
-           label = "data through 2025-04-03", color = "red", size = 4)
+# Make sure date formatting is the same
+monthly_rainfall_2024_2025$Date <- as.Date(paste0(monthly_rainfall_2024_2025$Year, "-", 
+                                                  monthly_rainfall_2024_2025$Month, "-01"))
+```
 
-# Display the plot
+#### Plot
+
+```{r}
+# Plot
+monthly_rainfall_plot <- ggplot() +
+  geom_line(data = climatology_repeated, 
+            aes(x = Date, y = mean_monthly_PPT, 
+                color = "Mean Modeled Historical PPT"), linewidth = 1) +
+  geom_errorbar(data = climatology_repeated,
+                aes(x = Date, 
+                    ymin = mean_monthly_PPT - se_monthly_PPT,
+                    ymax = mean_monthly_PPT + se_monthly_PPT),
+                width = 10, inherit.aes = FALSE) +
+  geom_point(data = monthly_rainfall_2024_2025,
+             aes(x = Date, y = total_PPT, 
+                 color = "Observed PPT"),
+             shape = 16, size = 3) +
+  # Color mapping with matching labels
+  scale_color_manual(name = "",
+                     values = c("Mean Modeled Historical PPT" = "black", 
+                                "Observed PPT" = "blue")) +
+  scale_x_date(date_breaks = "2 months", date_labels = "%b\n%Y") +
+  scale_y_continuous(limits = c(0, 200), expand = c(0, 0)) +
+  labs(x = "Date", y = "Precipitation (mm)", 
+       title = "Ongava WorldClim2.1 2009–2019 vs. Observed Rainfall") +
+  annotate("text", x = as.Date("2025-06-01"), 
+           y = 140,  # legend position
+           label = "data through 2025-04-03", color = "red", size = 4) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top")
+
 print(monthly_rainfall_plot)
 
-# Save the updated plot
+# Save plot
 ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
        plot = monthly_rainfall_plot,
        device = "jpeg",
-       width = 8, height = 6, dpi = 300)
+       width = 10, height = 6, dpi = 300)
+
 ```
 
 ### Cumulative rainfall during experiment
@@ -698,6 +721,12 @@ ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
          Addition_PPT_mm_planned = 
            rowSums(across(c(Control_PPT_mm,                    PPT_addition_mm_planned)), na.rm = TRUE),)
 
+
+```
+
+#### Plot
+
+```{r}
 # Create the plot for cumulative precipitation 
 # Calculate cumulative precipitation
 ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
@@ -708,14 +737,18 @@ ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
 
 # Plot cumulative precipitation
 ggplot(ongava_ppt_2024_2025, aes(x = Date)) +
-  geom_line(aes(y = Cumulative_PPT_ctrl, color = "Control PPT"), size = 1) +
-  geom_line(aes(y = Cumulative_PPT_addition, color = "Actual Additions"), size = 1) +
-  geom_line(aes(y = Cumulative_PPT_planned, color = "Planned Additions"), size = 1) +
+  geom_line(aes(y = Cumulative_PPT_ctrl, color = "Ambient PPT"), size = 1) +
+  geom_line(aes(y = Cumulative_PPT_addition, color = "Ambient + Actual Additions"), size = 1) +
+  geom_line(aes(y = Cumulative_PPT_planned, color = "Ambient + Planned Additions"), size = 1) +
   labs(title = "Cumulative Rainfall and Additions",
        x = "Date",
        y = "Cumulative Precipitation (mm)",
        color = "Legend") +
-  theme_minimal()
+  theme_classic() +
+  theme(
+    legend.position = c(0.5, 0.8),  # Adjust position as needed
+    panel.grid = element_blank()    # Remove gridlines
+  )
 
 # save the plot
 ggsave(filename = 
@@ -724,3 +757,5 @@ ggsave(filename =
        width = 8, height = 6, dpi = 300)
 
 ```
+
+![]()
