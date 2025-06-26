@@ -54,25 +54,34 @@ allfiles <- list.files(
   full.names = TRUE  
 )
 
-# reading and extract loggerID
+# Create a function to read and extract loggerID
 read_fun = function(path) {
-  test = read.csv(path, 
-                  skip = 5,
-                  header = FALSE,
-                  col.names = c("datetime", "temperature", "RH", "heatindex", "dewpoint", "datatype") )
-  allnames = str_split( path, pattern = "/", simplify = TRUE)
- test$loggerID = str_extract(allnames[, ncol(allnames)], pattern = "2[0-9][0-9][0-9][0-9][0-9][0-9]") #extract the loggerID from the file name and add as a column
+  # Read in the file without assigning column names yet
+  test = read.csv(path, skip = 5, header = FALSE)
+  
+  # Keep only the first 6 columns before assigning names
+  test = test[, 1:6]
+  
+  # Assign column names
+  colnames(test) = c("datetime", "temperature", "RH", "heatindex", "dewpoint", "datatype")
+  
+  # Extract loggerID from the file name
+  allnames = str_split(path, pattern = "/", simplify = TRUE)
+  test$loggerID = str_extract(allnames[, ncol(allnames)], pattern = "2[0-9]{6}") # 7-digit logger ID starting with 2 and then 6 digits that are between 0 and 9
+  
+  # Coerce columns to numeric
   test$RH <- as.numeric(as.character(test$RH))
   test$heatindex <- as.numeric(as.character(test$heatindex))
   test$dewpoint <- as.numeric(as.character(test$dewpoint))
   test$temperature <- as.numeric(as.character(test$temperature))
   test$loggerID <- as.numeric(as.character(test$loggerID))
+  
   test
 }
 
 # Line below is useful for testing if logger name is being assigned
 # change the number in brackets to check show the top section of each file
-#read_fun(allfiles[5]) # use to test the function on an individual file
+read_fun(allfiles[35]) # use to test the function on an individual file
 ```
 
 ### Read in and Combine Files
@@ -150,6 +159,10 @@ L1_kestrel_data <-combined_kestrel_cleaning[combined_kestrel_cleaning
 #  combined_kestrel_cleaning[["time"]] <= "2025-01-14", 
 #]
 
+# remove any repetitive rows where there are multiple entries for the same time, date, and loggerID
+L1_kestrel_data <- L1_kestrel_data |>
+  distinct(time, loggerID, .keep_all = TRUE)
+
 # Check that all loggers are still present
 L1_kestrel_data |>
   group_by(loggerID) |> 
@@ -179,8 +192,9 @@ p1 <- L1_kestrel_data |>
     geom_line() +
     xlab(" ") +
     ylab("RH (%)") +
-    scale_x_datetime(date_breaks = "5 day", labels = date_format("%m-%d-%y")) +
-    facet_grid(loggerID ~ .) 
+    scale_x_datetime(date_breaks = "1 week", labels = date_format("%m-%d-%y")) +
+    facet_grid(loggerID ~ .)  +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 p1
 
 # Save the plot as a JPG in the "figs" folder
@@ -197,8 +211,9 @@ p2 <- L1_kestrel_data |>
     geom_line() +
     xlab(" ") +
     ylab("Temperature (C)") +
-    scale_x_datetime(date_breaks = "5 day", labels = date_format("%m-%d-%y")) +
-    facet_grid(loggerID ~ .) 
+    scale_x_datetime(date_breaks = "1 week", labels = date_format("%m-%d-%y")) +
+    facet_grid(loggerID ~ .) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 p2
 
 # Save the plot as a JPG in the "figs" folder
