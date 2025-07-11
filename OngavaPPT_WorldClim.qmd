@@ -16,7 +16,7 @@ Output csv data are saved in Dropbox.\
 Output figures are saved in the Github repo (along with this script).
 
 TODO:\
-- Check if partial rainyears should be removed from WorldClim data.\
+======= - Check if partial rainyears should be removed from WorldClim data.\
 
 # Set Up
 
@@ -413,8 +413,7 @@ rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Rainyr_PPT)) +
 rainfall_histogram
 ```
 
-### Extreme Rainfall Years
-
+### Extreme Rainfall Years 
 ```{r}
 # Explore patterns of extreme rainfall years through time
 
@@ -459,7 +458,7 @@ rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021,
 rainfall_extremes_1960.2021
 
 ggsave(filename = here("figs", "1960.2021rainfall_extremes.jpg"),
-       plot = rainfall_1960.2021,
+       plot = rainfall_extremes_1960.2021,
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 
@@ -628,6 +627,52 @@ monthly_rainfall_2024_2025 <- ongava_ppt_2024_2025 |>
   group_by(Year, Month) |>
   summarize(total_PPT = sum(CampusPPT, na.rm = TRUE), .groups = "drop")
 
+## Create a plot of historical means versus actual rainfall during experiment
+
+# Assume monthly_precip_2010.2019 has 12 rows for months Jan (1) to Dec (12)
+# Reorder the months to start from June
+monthly_precip_reordered <- monthly_precip_2010.2019 |>
+  arrange(match(Month, c(6:12, 1:5)))  # Reorders months: Jun, Jul, ..., Dec, Jan, ..., May
+
+# Repeat to cover 17 months (June 2024 to October 2025)
+dates_seq <- seq.Date(from = as.Date("2024-06-01"), to = as.Date("2025-10-01"), by = "month")
+
+monthly_climatology_expanded <- data.frame(
+  Date = dates_seq,
+  Month = month(dates_seq),
+  mean_monthly_PPT = rep(monthly_precip_reordered$mean_monthly_PPT, length.out = length(dates_seq)),
+  se_monthly_PPT = rep(monthly_precip_reordered$se_monthly_PPT, length.out = length(dates_seq))
+)
+
+# Ensure observed data also has a Date column
+monthly_rainfall_2024_2025 <- monthly_rainfall_2024_2025 %>%
+  mutate(Date = as.Date(paste(Year, Month, "01", sep = "-")))
+
+# Create the plot
+monthly_rainfall_plot <- ggplot(monthly_climatology_expanded, aes(x = Date)) +
+  geom_line(aes(y = mean_monthly_PPT), linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_monthly_PPT - se_monthly_PPT,
+                    ymax = mean_monthly_PPT + se_monthly_PPT), width = 10) +
+  geom_point(data = monthly_rainfall_2024_2025,
+             aes(x = Date, y = total_PPT)) +
+  geom_line(data = monthly_rainfall_2024_2025,
+          aes(x = Date, y = total_PPT),
+          color = "blue", linewidth = 1) +
+  scale_shape_manual(name = "Year", values = seq(0, 9)) +
+  scale_x_date(date_breaks = "2 months", date_labels = "%b\n%Y") +
+  scale_y_continuous(limits = c(0, 200), expand = c(0, 0)) +
+  labs(x = "Month", y = "Precipitation (mm)",
+       title = "Ongava WorldClim2.1 2009–2019 vs. Campus Rainfall") +
+  theme_classic()
+
+# Add red annotation
+monthly_rainfall_plot <- monthly_rainfall_plot +
+  annotate("text", 
+           x = as.Date("2024-09-01"),
+           y = 150,
+           label = "data through 2025-06-30", 
+           color = "red", size = 4)
+
 # Create full date range and join with climatology
 date_seq <- seq(as.Date("2024-06-01"), as.Date("2026-05-01"), by = "month")
 date_df <- data.frame(Date = date_seq)
@@ -758,4 +803,55 @@ ggsave(filename =
 
 ```
 
-![]()
+### Rainfall additions vs. historical extremes
+
+```{r}
+
+# plot the WorldClim data versus total rainfal and additions during the experiment
+
+# Filter data to the target range
+ppt_sum_data <- ongava_ppt_2024_2025 |>
+  filter(Date >= as.Date("2024-06-01") & Date <= as.Date("2025-05-30"))
+
+ambient_total <- sum(ppt_sum_data$CampusPPT, na.rm = TRUE)
+ambient_plus_addition_total <- sum(ppt_sum_data$CampusPPT + ppt_sum_data$PPT_addition_mm_actual, na.rm = TRUE)
+
+rainfall_extremes_1960.2021_vs_2024.2025 <- ggplot(annual_rainfall_1960.2021, 
+      aes(x = rain_year, y = Rainyr_PPT, group = 1)) +
+  geom_line(linewidth = 1) +
+
+  # Mean and percentile lines
+  geom_hline(yintercept = mean(annual_rainfall_1960.2021$Rainyr_PPT, na.rm = TRUE), 
+             color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = percentiles[1], color = "blue", linetype = "dotted", size = 1) +
+  geom_hline(yintercept = percentiles[2], color = "darkgreen", linetype = "dotted", size = 1) +
+  geom_hline(yintercept = percentiles[3], color = "darkgreen", linetype = "dotted", size = 1) +
+  geom_hline(yintercept = percentiles[4], color = "blue", linetype = "dotted", size = 1) +
+
+  # NEW: ambient line (pink)
+  geom_hline(yintercept = ambient_total, color = "deeppink", size = 1) +
+  annotate("text", x = "1994-1995", y = ambient_total + 15,
+           label = "ambient PPT (2024–2025)", color = "deeppink", hjust = 0) +
+
+  # NEW: ambient + addition line (light blue)
+  geom_hline(yintercept = ambient_plus_addition_total, color = "orange", size = 1) +
+  annotate("text", x = "1994-1995", y = ambient_plus_addition_total - 15,
+           label = "PPT ambient + addition (2024–2025)", color = "orange", hjust = 0) +
+
+  labs(x = "Rain Year", y = "Precipitation (mm)", 
+       title = "1960–2021 WorldClim2.1 w/ average and extreme rainfall") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top") +
+  scale_x_discrete(breaks = levels(annual_rainfall_1960.2021$rain_year)[
+    seq(1, length(levels(annual_rainfall_1960.2021$rain_year)), by = 5)])
+
+rainfall_extremes_1960.2021_vs_2024.2025
+
+# save the plot
+ggsave(filename = 
+         here("figs", "1960.2021rainfall_extremes_vs_2024-5experiment.jpg"),
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+```
+
