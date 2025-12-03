@@ -21,27 +21,27 @@ This analysis script performs corrections on litter mass data from the Ongava Du
 
 `Block`: The block assigned to the litterbag. Litterbags were deployed in blocks of co-located litterbags (see "Ongava litterbag maps.pptx" for details). Allowable values = A - F.
 
-`Microsite`: The microsite assigned to the litterbag. Allowable values = tree, open, NA. Tree microsites were under mopane canopies and open microsites were in open areas without tree canopy cover. Time 0 litterbags were not assigned to microsites and are indicated as NA. 
+`Microsite`: The microsite assigned to the litterbag. Allowable values = tree, open, NA. Tree microsites were under mopane canopies and open microsites were in open areas without tree canopy cover. Time 0 litterbags were not assigned to microsites and are indicated as NA.
 
-`WaterTrt`:The water treatment assigned to the block that the litterbag was in. Allowable values = Ctrl, Addition, and NA. Time 0 litterbags were not assigned to a water treatment and are indicated as NA. 
+`WaterTrt`:The water treatment assigned to the block that the litterbag was in. Allowable values = Ctrl, Addition, and NA. Time 0 litterbags were not assigned to a water treatment and are indicated as NA.
 
-`Location`: The relative location within a block assigned to the litterbag to help in locating the bags for future collections (see "Ongava litterbag maps.pptx" for details). Allowable values = 1 - 8, NA. Time 0 litterbags were not assigned to a water treatment and are indicated as NA. 
+`Location`: The relative location within a block assigned to the litterbag to help in locating the bags for future collections (see "Ongava litterbag maps.pptx" for details). Allowable values = 1 - 8, NA. Time 0 litterbags were not assigned to a water treatment and are indicated as NA.
 
-`CollectionTime`: The time point assigned for the litterbag to be collected. Allowable values = 0 - 6, with each 1 unit corresponding to 3 months. 
+`CollectionTime`: The time point assigned for the litterbag to be collected. Allowable values = 0 - 6, with each 1 unit corresponding to 3 months.
 
 `CollectionDate`: The date the litterbag was collected from the field. Format = YYYY-MM-DD.
 
 #### Measured variables
 
-`LitterbagMass`: The mass of the litterbag at the start of the experiment. Allowable values = 2.5-4 for dung and NA for mopane. Units = g. 
+`LitterbagMass`: The mass of the litterbag at the start of the experiment. Allowable values = 2.5-4 for dung and NA for mopane. Units = g.
 
-`Litterbag_Litter`: The mass of the litterbag and the wet litter within the litterbag at the start of the experiment. Allowable values = 30-45 for dung and NA for mopane. Units = g. Dung was weighed within a litterbag while mopane was weighed in a weigh boat and then transferred to a litterbag. 
+`Litterbag_Litter`: The mass of the litterbag and the wet litter within the litterbag at the start of the experiment. Allowable values = 30-45 for dung and NA for mopane. Units = g. Dung was weighed within a litterbag while mopane was weighed in a weigh boat and then transferred to a litterbag.
 
 `InitialWetMass`: The initial wet mass of the litter at the start of the experiment. Allowable values = 27.5-41 for dung and 3-3.5 for mopane. This is a calculated varibale for dung and a measure variable for mopane. Units = g.
 
 #### Calculated variables
 
-`InitialDryMass`: The initial dry mass of the litter at the start of the experiment (after wet-dry correction). InitialDryMass = InitialWetMass x ProportionDry. Allowable values = XXX-XXX for dung and 2.5 - 3.4 for mopane. Units = g. 
+`InitialDryMass`: The initial dry mass of the litter at the start of the experiment (after wet-dry correction). InitialDryMass = InitialWetMass x ProportionDry. Allowable values = XXX-XXX for dung and 2.5 - 3.4 for mopane. Units = g.
 
 `FinalDryMass`: The final dry mass of the litter at the end of the experiment (after wet-dry correction).
 
@@ -105,7 +105,7 @@ p2 <- WetDry |>
     geom_point() +
     labs(x = "Litterbag Number", y = "Wet-Dry Correction Factor") +
     theme_minimal() +
-    ggtitle("Wet-Dry Correction for Mopane Litterbags")
+    ggtitle("Wet-Dry Correction for Dung Litterbags")
 p2
 
 # summarize wet-dry correction factor by litter type
@@ -126,23 +126,82 @@ WetDry_Summary <- WetDry |>
 LitterMass <- LitterMass |>
   left_join(
     WetDry_Summary |>
-      select(LitterType, Mean_WetDryCorrect),
+      select(LitterType, WetDryCorrection),
     by = "LitterType"
   ) |>
   mutate(
-    InitialDryMass = InitialWetMass * Mean_WetDryCorrect
-  )
+    InitialDryMass = InitialWetMass * WetDryCorrection)
 ```
 
 ## Transport Loss Correction
 
 ```{r}
+# plot InitialDryMass versus FinalDryMass to visualize transport loss
+
+p3 <- LitterMass |> 
+  filter(LitterType == "dung" & CollectionTime == 0) |>
+  ggplot(aes(x = InitialDryMass, y = FinalDryMass)) +
+    geom_point() +
+    labs(x = "Initial Dry Mass (g)", y = "Final Dry Mass (g)") +
+    theme_minimal() +
+    ggtitle("Transport Loss for Dung Litterbags")
+p3
+
+p4 <- LitterMass |> 
+  filter(LitterType == "mopane" & CollectionTime == 0) |>
+  ggplot(aes(x = InitialDryMass, y = FinalDryMass)) +
+    geom_point() +
+    labs(x = "Initial Dry Mass (g)", y = "Final Dry Mass (g)") +
+    theme_minimal() +
+    ggtitle("Transport Loss for Mopane Litterbags")
+p4
 
 ```
+
+```{r}
+# calculate transport loss correction factor for each litter type
+
+TransportLoss_Summary <- LitterMass |>
+  filter(CollectionTime == 0) |>
+  group_by(LitterType) |>
+  summarize(
+    TransportLossCorrection = mean(FinalDryMass / InitialDryMass, na.rm = TRUE),
+    SD_TransportLossCorrect = sd(FinalDryMass / InitialDryMass, na.rm = TRUE),
+    N = n(),
+    SE_TransportLossCorrect = SD_TransportLossCorrect / sqrt(N)
+  )
+
+
+#export WetDry as csv
+write_csv(WetDry,
+  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
+            "data", "TransportLoss_Summary.csv"))
+```
+
 
 ## Ash Correction
 
 ```{r}
+# read in the ashing data
+AshMass <- read_csv(
+  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
+            "data", "AshMass.csv"), 
+  show_col_types = FALSE)
 
+# Calculate ash mass and the ash correction factor
+AshMass <- AshMass |>
+  mutate(LitterMass = CrucibleLidLitter - CrucibleLid,
+    AshMass = CrucibleLidAsh - CrucibleLid,
+    ProportionAsh = AshMass/LitterMass)
+
+# plot of ash correction by litterbag number for each litter type
+p5 <- AshMass |> 
+  ggplot(aes(x = LitterbagID, y = ProportionAsh)) +
+    geom_point() +
+    labs(x = "Litterbag Number", y = "Wet-Dry Correction Factor") +
+    theme_minimal() +
+    ggtitle("Wet-Dry Correction for Litterbags")
+p5
 
 ```
+
