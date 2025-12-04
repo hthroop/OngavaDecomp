@@ -56,15 +56,29 @@ library(tidyverse)
 ```{r}
 #| label: config-setup
 
-# Use the stored config file to define the path for the DERT Data & Metadata folder (in Dropbox) 
+# This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
 DERT_Archives <- config::get()
 ```
 
 ```{r}
-# read in the litter mass data
+#| label: read-in-files
+
+# Litter wet-dry mass data
+WetDry <- read_csv(
+  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
+            "data", "WetDry.csv"), 
+  show_col_types = FALSE)
+
+# Litter mass data 
 LitterMass <- read_csv(
   file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
             "data", "LitterMass.csv"), 
+  show_col_types = FALSE)
+
+# Ash data
+AshMass <- read_csv(
+  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
+            "data", "AshMass.csv"), 
   show_col_types = FALSE)
 ```
 
@@ -72,12 +86,6 @@ LitterMass <- read_csv(
 
 ```{r}
 #| label: calculate wet-dry
-
-# read in the litter wet-dry mass data
-WetDry <- read_csv(
-  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
-            "data", "WetDry.csv"), 
-  show_col_types = FALSE)
 
 # Calculate dry mass and the wet-dry correction factor
 WetDry <- WetDry |>
@@ -136,7 +144,7 @@ LitterMass <- LitterMass |>
 ## Transport Loss Correction
 
 ```{r}
-# plot InitialDryMass versus FinalDryMass to visualize transport loss
+#| label: plots to visualize transport loss
 
 p3 <- LitterMass |> 
   filter(LitterType == "dung" & CollectionTime == 0) |>
@@ -159,7 +167,7 @@ p4
 ```
 
 ```{r}
-# calculate transport loss correction factor for each litter type
+#| label: calculate transport loss correction factor for each litter type
 
 TransportLoss_Summary <- LitterMass |>
   filter(CollectionTime == 0) |>
@@ -171,22 +179,36 @@ TransportLoss_Summary <- LitterMass |>
     SE_TransportLossCorrect = SD_TransportLossCorrect / sqrt(N)
   )
 
-
-#export WetDry as csv
-write_csv(WetDry,
-  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
-            "data", "TransportLoss_Summary.csv"))
+# box and whisker plot of transport correction by litter type
+#p6 <- LitterMass |> 
+#  filter(CollectionTime == 0) |>
+#  ggplot(aes(x = LitterType, y = TransportLossCorrection)) +
+#    geom_boxplot() +
+#    labs(x = "Litter Type", y = "Transport Loss Correction Factor") +
+#    theme_minimal() +
+#    ggtitle("Transport Loss Correction by Litter Type")
+#p6
 ```
 
+```{r}
+#| label: Transport loss correction
+LitterMass <- LitterMass |>
+  # first add a column with the litter specific transport loss correction factor
+  left_join(
+    TransportLoss_Summary |>
+      select(LitterType, TransportLossCorrection),
+    by = "LitterType"
+  ) |>
+  # then calculate the transport loss corrected initial dry mass
+  mutate(
+    InitialDryMass_TransportCorrected = InitialDryMass * TransportLossCorrection
+  )
+```
 
 ## Ash Correction
 
 ```{r}
-# read in the ashing data
-AshMass <- read_csv(
-  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
-            "data", "AshMass.csv"), 
-  show_col_types = FALSE)
+#| label: correct for initial ash content
 
 # Calculate ash mass and the ash correction factor
 AshMass <- AshMass |>
@@ -194,14 +216,68 @@ AshMass <- AshMass |>
     AshMass = CrucibleLidAsh - CrucibleLid,
     ProportionAsh = AshMass/LitterMass)
 
-# plot of ash correction by litterbag number for each litter type
-p5 <- AshMass |> 
-  ggplot(aes(x = LitterbagID, y = ProportionAsh)) +
-    geom_point() +
-    labs(x = "Litterbag Number", y = "Wet-Dry Correction Factor") +
-    theme_minimal() +
-    ggtitle("Wet-Dry Correction for Litterbags")
-p5
+# add ash data to LitterMass dataframe
+LitterMass <- LitterMass |>
+  left_join(
+    AshMass |>
+      select(LitterbagID, ProportionAsh),
+    by = "LitterbagID"
+  )
 
+# calculate proportion of the intial litter (collection time 0) that is ash for each litter type
+InitialAsh_Summary <- LitterMass |>
+  filter(CollectionTime == 0) |>
+  group_by(LitterType) |>
+  summarize(
+    N = n(),
+    AshCorrection = mean(ProportionAsh, na.rm = TRUE),
+    SD_AshCorrection = sd(ProportionAsh, na.rm = TRUE),
+    SE_AshCorrection = SD_AshCorrection / sqrt(N)
+  )
+
+# apply ash correction to initial dry mass (after wet-dry and transport loss corrections)
+LitterMass <- LitterMass |>
+  left_join(
+    InitialAsh_Summary |>
+      select(LitterType, AshCorrection),
+    by = "LitterType"
+  ) |>
+  mutate(
+    InitialDryMass_AshAndTransCorrected = InitialDryMass_TransportCorrected * (1 - AshCorrection)
+  )
+```
+
+## Final Dry Mass Calculations
+
+```{r}
+#| label: calculate-final-ash-free-dry-mass
+
+LitterMass <- LitterMass |>
+  mutate(FinalAshFreeDryMass = FinalDryMass * (1 - AshCorrection),
+         PctAFDM_Remaining = (
+           FinalAshFreeDryMass / InitialDryMass_AshAndTransCorrected) * 100
+         )
+
+# summary table of PctAFDM_Remaining by litter type and collection time
+LitterMass_Summary <- LitterMass |>
+  group_by(LitterType, CollectionTime) |>
+  summarize(
+    N = n(),
+    Mean_PctAFDM_Remaining = mean(PctAFDM_Remaining, na.rm = TRUE),
+    SD_PctAFDM_Remaining = sd(PctAFDM_Remaining, na.rm = TRUE),
+    SE_PctAFDM_Remaining = SD_PctAFDM_Remaining / sqrt(N)
+  )
+
+```
+
+
+
+```{r}
+
+### IS THIS NEEDED?
+#export WetDry as csv
+#write_csv(WetDry,
+#  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
+#            "data", "TransportLoss_Summary.csv"))
 ```
 
