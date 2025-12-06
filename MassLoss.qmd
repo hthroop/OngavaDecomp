@@ -11,9 +11,11 @@ editor_options:
 
 This analysis script performs corrections on litter mass data from the Ongava Dung Decay experiment. The corrections include wet-dry correction, transport loss correction, and ash correction. The corrected mass data is then plotted to explore decomposition rates.
 
-### Variable Names
+Written 2025-12-02 by Heather Throop
 
-#### Experimental design variables
+### Variable Names and Descriptions
+
+#### Experimental design variables 
 
 `LitterbagID`: The unique identifier for each litterbag used in the experiment. Allowable values = M001 to M102 for mopane samples and D001 to D102 for dung samples.
 
@@ -31,6 +33,14 @@ This analysis script performs corrections on litter mass data from the Ongava Du
 
 `CollectionDate`: The date the litterbag was collected from the field. Format = YYYY-MM-DD.
 
+`LitterbagStart`: The first litterbag number assigned to a particular WetDry correction sample. Allowable values = 1 - 102 for both dung and mopane.
+
+`LitterbagEnd`: The last litterbag number assigned to a particular WetDry correction sample. Allowable values = 1 - 102 for both dung and mopane.
+
+`Crucible`: The crucible number assigned to a particular ash mass sample. Allowable values = 1 - 15 for both dung and mopane. 
+
+`AshDate`: The date the ash mass sample was processed. Format = YYYY-MM-DD AM/PM.
+
 #### Measured variables
 
 `LitterbagMass`: The mass of the litterbag at the start of the experiment. Allowable values = 2.5-4 for dung and NA for mopane. Units = g.
@@ -43,28 +53,49 @@ This analysis script performs corrections on litter mass data from the Ongava Du
 
 `Boat`: The mass of the weigh boat used to hold the mopane or dung litter during drying. Allowable values = 0-40. 0 indicates that the weigh boat was tared prior to weighing (boats were typically tared when there was only one balance user working at a time). Units = g.
 
+`BagMass`: The mass of the empty bag used to hold the litter during wet-dry correction. Allowable values = 3 - 3.5. Units = g.
+
+`WetMassAndBag`: The mass of the wet litter and the bag used to hold the litter during wet-dry correction. Allowable values = 5 - 50. Units = g.
+
+`DryMassAndBag`: The mass of the dried litter and the bag used to hold the litter during wet-dry correction. Allowable values = 6 - 22. Units = g.
+
+`CrucibleLid`: The mass of the crucible and lid before adding litter. Allowable values = 15 - 20 for both dung and mopane. Units = g.
+
+`CrucibldLidLitter`: The mass of the crucible, lid, and dried litter before ashing. Allowable values = 18 - 30. Units = g.
+
+`CrucibleLidAsh`: The mass of the crucible, lid, and ash after ashing. Allowable values = 18 - 30. Units = g.
+
 #### Calculated variables
 
-`WetDryCorrection`: The wet-dry correction factor calculated as the proportion of dry mass to wet mass for each litter type. This factor is used to convert initial wet mass to initial dry mass. Allowable values = XXX-XXX for dung and 0.83 - 0.92 for mopane. Unitless.
+`WetDryCorrection`: The wet-dry correction factor calculated as the proportion of dry mass to wet mass for each litter type. This factor is used to convert initial wet mass to initial dry mass. Allowable values = 0.379 for dung and 0.907 for mopane. Unitless.
 
-`InitialDryMass`: The initial dry mass of the litter at the start of the experiment (after wet-dry correction). InitialDryMass = InitialWetMass x ProportionDry. Allowable values = XXX-XXX for dung and 2.5 - 3.4 for mopane. Units = g.
+`InitialDryMass`: The initial dry mass of the litter at the start of the experiment (after wet-dry correction). InitialDryMass = InitialWetMass x ProportionDry. Allowable values = 10 - 16 for dung and 2.6 - 3.1 for mopane. Units = g.
 
-`FinalDryMass`: The final dry mass of the litter at the end of the experiment (after wet-dry correction). FinalDryMass = DryAndBoat - Boat. Allowable values = XXX-XXX for dung and 0-3.4 for mopane. Units = g.
+`FinalDryMass`: The final dry mass of the litter at the end of the experiment (after wet-dry correction). FinalDryMass = DryAndBoat - Boat. Allowable values = 0 - 65. Units = g.
 
-`TransportLossCorrection`: The transport loss correction factor calculated as the mean proportion of final dry mass to initial dry mass for time 0 litterbags for each litter type. This factor is used to correct initial dry mass for transport losses. Allowable values = XXX-XXX for dung and 0.85 - 0.95 for mopane. Unitless.
+`TransportLossCorrection`: The transport loss correction factor calculated as the mean proportion of final dry mass to initial dry mass for time 0 litterbags for each litter type. This factor is used to correct initial dry mass for transport losses. Allowable values = 0.948 for dung and 0.998 for mopane. Unitless.
 
-`InitialDryMass_TransportCorrected`: The initial dry mass of the litter at the start of the experiment after correcting for transport losses (mass loss in time 0 bags). InitialDryMass_TransportCorrected = InitialDryMass x TransportLossCorrection. Allowable values = XXX-XXX for dung and 2.3 - 3.2 for mopane. Units = g.
+`InitialDryMass_TransportCorrected`: The initial dry mass of the litter at the start of the experiment after correcting for transport losses (mass loss in time 0 bags). InitialDryMass_TransportCorrected = InitialDryMass x TransportLossCorrection. Allowable values = 10 - 16 for dung and 2.6 - 3.1 for mopane. Units = g.
 
-`ProportionAsh`: The proportion of ash in the litter calculated as the mass of ash divided by the mass of litter for each litterbag after collection. Allowable values = xx - xx for dung and xx - xx for mopane. Unitless.
+`ProportionAsh`: The proportion of ash in the litter calculated as the mass of ash divided by the mass of litter for each litterbag after collection. Allowable values = 0.01 - 1. Unitless.
 
-`AshCorrection`: The ash correction factor calculated as the mean proportion of ash in time 0 litterbags for each litter type. This factor is used to correct initial dry mass for ash content. Allowable values = xx - xx for dung and xx - xx for mopane. Unitless.
+`AshCorrection`: The ash correction factor calculated as the mean proportion of ash in time 0 litterbags for each litter type. This factor is used to correct initial dry mass for ash content. Allowable values = 0.088 for dung and 0.064 for mopane. Unitless.
 
-`Initial_AFDM_TransCorrected`: 
+`Initial_AFDM_TransCorrected`: The ash-free dry mass of the litter at the start of the experiment after correcting for transport losses and ash content. Initial_AFDM_TransCorrected = InitialDryMass_TransportCorrected x (1 - AshCorrection). Allowable values = 10 - 16 for dung and 2.6 - 3.1 for mopane. Units = g. 
 
-`Final_AFDM`: 
+`Final_AFDM`: The ash-free dry mass of the litter at the end of the experiment after correcting for ash content. Final_AFDM = FinalDryMass x (1 - ProportionAsh). Allowable values = 0 - 16 for dung and 0 - 3.1 for mopane. Units = g.
 
-`PctAFDM_Remaining`: 
+`PctAFDM_Remaining`: The percentage of ash-free dry mass remaining at the end of the experiment. PctAFDM_Remaining = (Final_AFDM / Initial_AFDM_TransCorrected) * 100. Allowable values = 0 - 100 for both dung and mopane. Units = %. 
 
+`WetMass`: The wet mass of the litter used in the wet-dry correction. WetMass = WetMassAndBag - BagMass. Allowable values = 3 - 50. Units = g.
+
+`DryMass`: The dry mass of the litter used in the wet-dry correction. DryMass = DryMassAndBag - BagMass. Allowable values = 3 - 18. Units = g.
+
+`ProportionDry`: The proportion of dry mass to wet mass for each litterbag used in the wet-dry correction. ProportionDry = DryMass / WetMass. Allowable values = 0.1 - 1. Unitless.
+
+`LitterMass`: The mass of the litter used in the ash correction. LitterMass = CrucibleLidLitter - CrucibleLid. Allowable values = 3 - 18. Units = g.
+
+`AshMass`: The mass of the ash remaining after ashing the litter. AshMass = CrucibleLidAsh - CrucibleLid. Allowable values = 0.01 - 5. Units = g.
 
 ## Preparation
 
@@ -295,20 +326,7 @@ LitterMass_Summary <- LitterMass |>
     SE_PctAFDM_Remaining = SD_PctAFDM_Remaining / sqrt(N)
   )
 
-# simple plot of PctAFDM_Remaining over time by litter type
-p5 <- LitterMass_Summary |> 
-  ggplot(aes(x = CollectionTime, y = Mean_PctAFDM_Remaining, color = LitterType)) +
-    geom_point() +
-    geom_line() +
-    geom_errorbar(aes(ymin = Mean_PctAFDM_Remaining - SE_PctAFDM_Remaining,
-                      ymax = Mean_PctAFDM_Remaining + SE_PctAFDM_Remaining),
-                  width = 0.2) +
-    labs(x = "Collection Time", 
-         y = "Mean % Ash-Free Dry Mass Remaining") +
-    theme_minimal() +
-    ggtitle("Dung and Mopane Decomposition Over Time")
-p5
-
+# plot of mean percent AFDM remaining over time by litter type, microsite, and water treatment
 p5 <- LitterMass_Summary |> 
   filter(!is.na(WaterTrt)) |>
   ggplot(aes(x = CollectionTime, 
@@ -321,23 +339,22 @@ p5 <- LitterMass_Summary |>
                   width = 0.2) +
     facet_grid(WaterTrt ~ Microsite) +
     labs(x = "Collection Time", 
-         y = "Mean % Ash-Free Dry Mass Remaining") +
-    theme_minimal() +
+         y = "Mean Ash-Free Dry Mass Remaining (%)") +
+    theme_bw() +
     ggtitle("Dung and Mopane Decomposition Over Time")
 p5
 
-
-
 ```
 
-
+## Export Data
 
 ```{r}
 
-### IS THIS NEEDED?
-#export WetDry as csv
-#write_csv(WetDry,
-#  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
-#            "data", "TransportLoss_Summary.csv"))
+# Export L2 data as csv.
+# This is the L2 (level 2) data with all corrections applied and calculations made.
+
+write_csv(LitterMass,
+  file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
+            "data", "LitterMass_L2.csv"))
 ```
 
