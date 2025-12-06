@@ -14,11 +14,9 @@ Data compilation of Kestrel data from Ongava for the decomposition experiment (2
 This script reads in csv files from individual Kestrel loggers, merges the files, and synthesizes the data.
 
 Created January 24, 2025 Heather Throop\
-Updated with new data 2025-03-19, 2025-04-09
+Updated with new data 2025-03-19, 2025-04-09, 2025-12-06
 
-To run this code, all raw Kestrel files should be placed within the "L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder (currently mapped to HT's local drive as API token for Dropbox folder pull not working).
-
-Install Packages
+Raw Kestrel files are stored in the "L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder and writes figures and csv files to Dropbox as mapped with a config folder.
 
 ```{r}
 #| label: load-packages
@@ -37,6 +35,13 @@ Display information about package versions in use when this code was run.
 sessionInfo()
 ```
 
+```{r}
+#| label: config-setup
+
+# This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
+DERT_Archives <- config::get()
+```
+
 # L0: Read, Clean, Combine
 
 ### List Kestrel Files
@@ -49,7 +54,7 @@ Much of this code is based on the commentary from: https://aosmith.rbind.io/2017
 # list all files to read in
 ### Note that this reference from Heather's laptop and may need to be changed for a different machine
 allfiles <- list.files(
-  path = file.path("/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/MicroclimateData/L0"),  
+  path = file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData", "L0"),  
   pattern = "\\.csv$",  # Ensure proper regex for .csv files  
   full.names = TRUE  
 )
@@ -96,17 +101,22 @@ combined_kestrel_notcleaned |>
   summarize(n = n())
 
 # Add in microsite and block information
-### pulls in file with loggerID information ("KestrelLoggerAssignments")
-df_loggers <- read.csv("https://www.dropbox.com/scl/fi/25mbe4f5g30nbrgfwn1of/KestrelLoggerAssignments.csv?rlkey=d2djvhf8jkq3hpv7yvoez2zoy&dl=1", header = TRUE)
-df_loggers$loggerID <- as.numeric(df_loggers$loggerID)
-combined_kestrel_notcleaned <- combined_kestrel_notcleaned |>
-  left_join(df_loggers, join_by(loggerID))
+## pulls in file with loggerID information ("KestrelLoggerAssignments")
+df_loggers <- read.csv(file.path(DERT_Archives, "OngavaDungDecay",
+            "MicroclimateData", "KestrelLoggerAssignments.csv"))
 
-#save the output as a .csv file - this is the combined L0 data
-write.csv(combined_kestrel_notcleaned, file = file.path(
-  "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/MicroclimateData/L1", 
-  "Ongava_kestrel_L0.csv"
-))
+## joins the dataframes
+combined_kestrel_notcleaned <- combined_kestrel_notcleaned |>
+  left_join(
+    df_loggers |> 
+      select(loggerID, Block, Microsite, WaterTrt, startdate),
+    by = "loggerID"
+  )
+
+#save the output as a .csv file - this is the combined L0 data that has not yet been cleaned
+write_csv(combined_kestrel_notcleaned,
+  file.path(DERT_Archives, "OngavaDungDecay","MicroclimateData",
+            "L1", "Ongava_kestrel_L0_combined.csv"))
 ```
 
 ## L1
@@ -128,7 +138,6 @@ combined_kestrel_cleaning$time <- NA
 combined_kestrel_cleaning$time <- parse_date_time(
   combined_kestrel_cleaning$datetime, 
   orders = c("mdy HM", "ymd HMS p"),  # List of possible formats
-  tz = "Africa/Johannesburg",
   quiet = FALSE  # This will show warnings and errors if parsing fails
 )
 
@@ -143,21 +152,29 @@ if (any(is.na(combined_kestrel_cleaning$time))) {
 combined_kestrel_cleaning <- combined_kestrel_cleaning[!is.na(combined_kestrel_cleaning$time), ]
 
 # Ensure the time is in 24-hour format (POSIXct will handle it correctly)
-combined_kestrel_cleaning$time <- as.POSIXct(combined_kestrel_cleaning$time, format = "%Y-%m-%d %H:%M:%S")
+combined_kestrel_cleaning$time <- 
+  as.POSIXct(combined_kestrel_cleaning$time, format = "%Y-%m-%d %H:%M:%S")
 
 # Round down to the nearest minute (sets seconds to :00)
 # Accounts for loggers that oddly start logging at :30
-combined_kestrel_cleaning$time <- floor_date(combined_kestrel_cleaning$time, unit = "minute")
+combined_kestrel_cleaning$time <- 
+  floor_date(combined_kestrel_cleaning$time, unit = "minute")
 
-# remove any data before the deployment date
-# NOTE THAT THE DATE MAY NEED TO BE ADJUSTED - PLACE THE DESIRED START DATE BELOW
-L1_kestrel_data <-combined_kestrel_cleaning[combined_kestrel_cleaning
-                                              [["time"]] >= "2024-12-18", ]  
-#### added end point since one logger was left logging longer than the others (January 2025 - first download)
-#L1_kestrel_data <- combined_kestrel_cleaning[
-#  combined_kestrel_cleaning[["time"]] >= "2024-12-18" & 
-#  combined_kestrel_cleaning[["time"]] <= "2025-01-14", 
-#]
+# remove any data before the deployment date and after the collection date
+# some loggers were added part way through the experiment so startdate varies among loggers
+combined_kestrel_cleaning$startdate <- as.POSIXct(mdy(combined_kestrel_cleaning$startdate))
+
+L1_kestrel_data <- combined_kestrel_cleaning |>
+  filter(
+    !is.na(startdate),                       # remove rows with missing startdate
+    as.Date(time) >= as.Date(startdate),     # compare dates, ignore time-of-day
+    time <= as.POSIXct("2025-10-08 23:59:59") # fixed end datetime
+  )
+
+# At least one logger was logging every 10 minutes. Keep only logs on the hour
+L1_kestrel_data <- L1_kestrel_data |> 
+  filter(minute(time) == 0,
+         second(time) == 0)
 
 # remove any repetitive rows where there are multiple entries for the same time, date, and loggerID
 L1_kestrel_data <- L1_kestrel_data |>
@@ -168,11 +185,9 @@ L1_kestrel_data |>
   group_by(loggerID) |> 
   summarize(n = n())
 
-#save the output as a .csv file
-write.csv(L1_kestrel_data, file = file.path(
-  "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/MicroclimateData/L1", 
-  "Ongava_kestrel_L1.csv"
-))
+write_csv(L1_kestrel_data,
+  file.path(DERT_Archives, "OngavaDungDecay","MicroclimateData",
+            "L1", "Ongava_kestrel_L1.csv"))
 
 # check the data carefully to see if any additional cleaning is needed!
 ```
@@ -198,7 +213,14 @@ p1 <- L1_kestrel_data |>
 p1
 
 # Save the plot as a JPG in the "figs" folder
-ggsave(filename = "figs/RH_all_loggers.jpg", plot = p1, width = 8, height = 6, dpi = 300)
+ggsave(
+  filename = file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData",
+                       "figs", "RH_all_loggers.jpg"),
+  plot = p1,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
 ```
 
 #### Temperature
@@ -217,7 +239,14 @@ p2 <- L1_kestrel_data |>
 p2
 
 # Save the plot as a JPG in the "figs" folder
-ggsave(filename = "figs/temperature_all_loggers.jpg", plot = p2, width = 8, height = 6, dpi = 300)
+ggsave(
+  filename = file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData",
+                       "figs", "Temp_all_loggers.jpg"),
+  plot = p2,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
 ```
 
 # L2: Treatment Means
@@ -256,14 +285,20 @@ p3 <- L2_hourlymeans_df |>
   theme_bw() +
   ylab("Relative Humidity (%)") +
   xlab("") +
-  facet_grid(Microsite ~ .) +
+  facet_grid(Microsite ~ WaterTrt) +
   scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +  
-  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "dashed"))  
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))  
 p3
 
 # Save the plot as a JPG in the "figs" folder
-ggsave(filename = "figs/RH_by_trt.jpg", plot = p3, width = 8, height = 6, dpi = 300)
-
+ggsave(
+  filename = file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData",
+                       "figs", "RH_by_trt.jpg"),
+  plot = p3,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
 
 ```
 
@@ -279,13 +314,19 @@ ggplot(aes(x=time, y=mean_T, color = WaterTrt, linetype = WaterTrt)) +
   theme_bw() +
   ylab("Temperature (C)") +
   xlab("") +
-  facet_grid(Microsite ~ .) +
+  facet_grid(Microsite ~ WaterTrt) +
   scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +  
-  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "dashed"))
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
 p4
 
 # Save the plot as a JPG in the "figs" folder
-ggsave(filename = "figs/temperature_by_trt.jpg", plot = p4, width = 8, height = 6, dpi = 300)
-
+ggsave(
+  filename = file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData",
+                       "figs", "Temp_by_trt.jpg"),
+  plot = p4,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
 
 ```

@@ -15,7 +15,7 @@ Written 2025-12-02 by Heather Throop
 
 ### Variable Names and Descriptions
 
-#### Experimental design variables 
+#### Experimental design variables
 
 `LitterbagID`: The unique identifier for each litterbag used in the experiment. Allowable values = M001 to M102 for mopane samples and D001 to D102 for dung samples.
 
@@ -37,7 +37,7 @@ Written 2025-12-02 by Heather Throop
 
 `LitterbagEnd`: The last litterbag number assigned to a particular WetDry correction sample. Allowable values = 1 - 102 for both dung and mopane.
 
-`Crucible`: The crucible number assigned to a particular ash mass sample. Allowable values = 1 - 15 for both dung and mopane. 
+`Crucible`: The crucible number assigned to a particular ash mass sample. Allowable values = 1 - 15 for both dung and mopane.
 
 `AshDate`: The date the ash mass sample was processed. Format = YYYY-MM-DD AM/PM.
 
@@ -81,11 +81,11 @@ Written 2025-12-02 by Heather Throop
 
 `AshCorrection`: The ash correction factor calculated as the mean proportion of ash in time 0 litterbags for each litter type. This factor is used to correct initial dry mass for ash content. Allowable values = 0.088 for dung and 0.064 for mopane. Unitless.
 
-`Initial_AFDM_TransCorrected`: The ash-free dry mass of the litter at the start of the experiment after correcting for transport losses and ash content. Initial_AFDM_TransCorrected = InitialDryMass_TransportCorrected x (1 - AshCorrection). Allowable values = 10 - 16 for dung and 2.6 - 3.1 for mopane. Units = g. 
+`Initial_AFDM_TransCorrected`: The ash-free dry mass of the litter at the start of the experiment after correcting for transport losses and ash content. Initial_AFDM_TransCorrected = InitialDryMass_TransportCorrected x (1 - AshCorrection). Allowable values = 10 - 16 for dung and 2.6 - 3.1 for mopane. Units = g.
 
 `Final_AFDM`: The ash-free dry mass of the litter at the end of the experiment after correcting for ash content. Final_AFDM = FinalDryMass x (1 - ProportionAsh). Allowable values = 0 - 16 for dung and 0 - 3.1 for mopane. Units = g.
 
-`PctAFDM_Remaining`: The percentage of ash-free dry mass remaining at the end of the experiment. PctAFDM_Remaining = (Final_AFDM / Initial_AFDM_TransCorrected) * 100. Allowable values = 0 - 100 for both dung and mopane. Units = %. 
+`PctAFDM_Remaining`: The percentage of ash-free dry mass remaining at the end of the experiment. PctAFDM_Remaining = (Final_AFDM / Initial_AFDM_TransCorrected) \* 100. Allowable values = 0 - 100 for both dung and mopane. Units = %.
 
 `WetMass`: The wet mass of the litter used in the wet-dry correction. WetMass = WetMassAndBag - BagMass. Allowable values = 3 - 50. Units = g.
 
@@ -205,7 +205,6 @@ LitterMass <- LitterMass |>
     FinalDryMass = DryAndBoat - Boat)
 
 ```
-
 
 ## Transport Loss Correction
 
@@ -357,4 +356,3 @@ write_csv(LitterMass,
   file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
             "data", "LitterMass_L2.csv"))
 ```
-
