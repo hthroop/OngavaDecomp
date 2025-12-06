@@ -39,11 +39,32 @@ This analysis script performs corrections on litter mass data from the Ongava Du
 
 `InitialWetMass`: The initial wet mass of the litter at the start of the experiment. Allowable values = 27.5-41 for dung and 3-3.5 for mopane. This is a calculated varibale for dung and a measure variable for mopane. Units = g.
 
+`DryAndBoat`: The mass of the dried litter and the weigh boat after drying at the end of the experiment. Allowable values = 0-50 for dung and 0-20 for mopane. Units = g.
+
+`Boat`: The mass of the weigh boat used to hold the mopane or dung litter during drying. Allowable values = 0-40. 0 indicates that the weigh boat was tared prior to weighing (boats were typically tared when there was only one balance user working at a time). Units = g.
+
 #### Calculated variables
+
+`WetDryCorrection`: The wet-dry correction factor calculated as the proportion of dry mass to wet mass for each litter type. This factor is used to convert initial wet mass to initial dry mass. Allowable values = XXX-XXX for dung and 0.83 - 0.92 for mopane. Unitless.
 
 `InitialDryMass`: The initial dry mass of the litter at the start of the experiment (after wet-dry correction). InitialDryMass = InitialWetMass x ProportionDry. Allowable values = XXX-XXX for dung and 2.5 - 3.4 for mopane. Units = g.
 
-`FinalDryMass`: The final dry mass of the litter at the end of the experiment (after wet-dry correction).
+`FinalDryMass`: The final dry mass of the litter at the end of the experiment (after wet-dry correction). FinalDryMass = DryAndBoat - Boat. Allowable values = XXX-XXX for dung and 0-3.4 for mopane. Units = g.
+
+`TransportLossCorrection`: The transport loss correction factor calculated as the mean proportion of final dry mass to initial dry mass for time 0 litterbags for each litter type. This factor is used to correct initial dry mass for transport losses. Allowable values = XXX-XXX for dung and 0.85 - 0.95 for mopane. Unitless.
+
+`InitialDryMass_TransportCorrected`:
+
+`ProportionAsh`: 
+
+`AshCorrection`:
+
+`Initial_AFDM_TransCorrected`: 
+
+`Final_AFDM`: 
+
+`PctAFDM_Remaining`: 
+
 
 ## Preparation
 
@@ -74,6 +95,11 @@ LitterMass <- read_csv(
   file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
             "data", "LitterMass.csv"), 
   show_col_types = FALSE)
+LitterMass <- LitterMass |>
+  mutate(WaterTrt = as.factor(WaterTrt),
+         Microsite = as.factor(Microsite),
+         LitterType = as.factor(LitterType),
+         Block = as.factor(Block))
 
 # Ash data
 AshMass <- read_csv(
@@ -141,6 +167,15 @@ LitterMass <- LitterMass |>
     InitialDryMass = InitialWetMass * WetDryCorrection)
 ```
 
+```{r}
+#| label: calculate final dry mass
+LitterMass <- LitterMass |>
+  mutate(
+    FinalDryMass = DryAndBoat - Boat)
+
+```
+
+
 ## Transport Loss Correction
 
 ```{r}
@@ -179,15 +214,6 @@ TransportLoss_Summary <- LitterMass |>
     SE_TransportLossCorrect = SD_TransportLossCorrect / sqrt(N)
   )
 
-# box and whisker plot of transport correction by litter type
-#p6 <- LitterMass |> 
-#  filter(CollectionTime == 0) |>
-#  ggplot(aes(x = LitterType, y = TransportLossCorrection)) +
-#    geom_boxplot() +
-#    labs(x = "Litter Type", y = "Transport Loss Correction Factor") +
-#    theme_minimal() +
-#    ggtitle("Transport Loss Correction by Litter Type")
-#p6
 ```
 
 ```{r}
@@ -236,6 +262,7 @@ InitialAsh_Summary <- LitterMass |>
   )
 
 # apply ash correction to initial dry mass (after wet-dry and transport loss corrections)
+# using "AFDM" for 'ash-free dry mass'
 LitterMass <- LitterMass |>
   left_join(
     InitialAsh_Summary |>
@@ -243,7 +270,7 @@ LitterMass <- LitterMass |>
     by = "LitterType"
   ) |>
   mutate(
-    InitialDryMass_AshAndTransCorrected = InitialDryMass_TransportCorrected * (1 - AshCorrection)
+    Initial_AFDM_TransCorrected = InitialDryMass_TransportCorrected * (1 - AshCorrection)
   )
 ```
 
@@ -253,20 +280,53 @@ LitterMass <- LitterMass |>
 #| label: calculate-final-ash-free-dry-mass
 
 LitterMass <- LitterMass |>
-  mutate(FinalAshFreeDryMass = FinalDryMass * (1 - AshCorrection),
+  mutate(Final_AFDM = FinalDryMass * (1 - ProportionAsh),
          PctAFDM_Remaining = (
-           FinalAshFreeDryMass / InitialDryMass_AshAndTransCorrected) * 100
+           Final_AFDM / Initial_AFDM_TransCorrected) * 100
          )
 
 # summary table of PctAFDM_Remaining by litter type and collection time
 LitterMass_Summary <- LitterMass |>
-  group_by(LitterType, CollectionTime) |>
+  group_by(CollectionTime, LitterType, Microsite, WaterTrt) |>
   summarize(
     N = n(),
     Mean_PctAFDM_Remaining = mean(PctAFDM_Remaining, na.rm = TRUE),
     SD_PctAFDM_Remaining = sd(PctAFDM_Remaining, na.rm = TRUE),
     SE_PctAFDM_Remaining = SD_PctAFDM_Remaining / sqrt(N)
   )
+
+# simple plot of PctAFDM_Remaining over time by litter type
+p5 <- LitterMass_Summary |> 
+  ggplot(aes(x = CollectionTime, y = Mean_PctAFDM_Remaining, color = LitterType)) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = Mean_PctAFDM_Remaining - SE_PctAFDM_Remaining,
+                      ymax = Mean_PctAFDM_Remaining + SE_PctAFDM_Remaining),
+                  width = 0.2) +
+    labs(x = "Collection Time", 
+         y = "Mean % Ash-Free Dry Mass Remaining") +
+    theme_minimal() +
+    ggtitle("Dung and Mopane Decomposition Over Time")
+p5
+
+p5 <- LitterMass_Summary |> 
+  filter(!is.na(WaterTrt)) |>
+  ggplot(aes(x = CollectionTime, 
+             y = Mean_PctAFDM_Remaining, 
+             color = LitterType)) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = Mean_PctAFDM_Remaining - SE_PctAFDM_Remaining,
+                      ymax = Mean_PctAFDM_Remaining + SE_PctAFDM_Remaining),
+                  width = 0.2) +
+    facet_grid(WaterTrt ~ Microsite) +
+    labs(x = "Collection Time", 
+         y = "Mean % Ash-Free Dry Mass Remaining") +
+    theme_minimal() +
+    ggtitle("Dung and Mopane Decomposition Over Time")
+p5
+
+
 
 ```
 
