@@ -53,11 +53,11 @@ This analysis script performs corrections on litter mass data from the Ongava Du
 
 `TransportLossCorrection`: The transport loss correction factor calculated as the mean proportion of final dry mass to initial dry mass for time 0 litterbags for each litter type. This factor is used to correct initial dry mass for transport losses. Allowable values = XXX-XXX for dung and 0.85 - 0.95 for mopane. Unitless.
 
-`InitialDryMass_TransportCorrected`:
+`InitialDryMass_TransportCorrected`: The initial dry mass of the litter at the start of the experiment after correcting for transport losses (mass loss in time 0 bags). InitialDryMass_TransportCorrected = InitialDryMass x TransportLossCorrection. Allowable values = XXX-XXX for dung and 2.3 - 3.2 for mopane. Units = g.
 
-`ProportionAsh`: 
+`ProportionAsh`: The proportion of ash in the litter calculated as the mass of ash divided by the mass of litter for each litterbag after collection. Allowable values = xx - xx for dung and xx - xx for mopane. Unitless.
 
-`AshCorrection`:
+`AshCorrection`: The ash correction factor calculated as the mean proportion of ash in time 0 litterbags for each litter type. This factor is used to correct initial dry mass for ash content. Allowable values = xx - xx for dung and xx - xx for mopane. Unitless.
 
 `Initial_AFDM_TransCorrected`: 
 
