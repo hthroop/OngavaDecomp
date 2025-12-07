@@ -413,7 +413,8 @@ rainfall_histogram <- ggplot(annual_rainfall_1960.2021, aes(x = Rainyr_PPT)) +
 rainfall_histogram
 ```
 
-### Extreme Rainfall Years 
+### Extreme Rainfall Years
+
 ```{r}
 # Explore patterns of extreme rainfall years through time
 
@@ -854,4 +855,3 @@ ggsave(filename =
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 ```
-

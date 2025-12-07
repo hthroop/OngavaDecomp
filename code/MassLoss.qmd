@@ -319,30 +319,107 @@ LitterMass <- LitterMass |>
 LitterMass_Summary <- LitterMass |>
   group_by(CollectionTime, LitterType, Microsite, WaterTrt) |>
   summarize(
-    N = n(),
+    N = sum(!is.na(PctAFDM_Remaining)),
     Mean_PctAFDM_Remaining = mean(PctAFDM_Remaining, na.rm = TRUE),
     SD_PctAFDM_Remaining = sd(PctAFDM_Remaining, na.rm = TRUE),
     SE_PctAFDM_Remaining = SD_PctAFDM_Remaining / sqrt(N)
   )
 
+
+
+
+
+
+```
+
+```{r}
+#| label: plot-AFDM-remaining
+
+# there are not treatments assigned to the time 0 data. Duplicate the data so that the data can be visualized for time 0
+# pull out time0 data from the summary table
+LitterMass_Summary_time0 <- LitterMass_Summary |>
+  filter(CollectionTime == 0)
+
+# define all possible combinations of variables
+all_combos <- expand_grid(
+  Microsite = c("open", "tree"),     
+  WaterTrt  = c("Ctrl", "Addition")     
+)
+# expand the data so that there are values for all treatment combinations
+LitterMass_Summary_expanded <- LitterMass_Summary_time0 |>
+  ungroup() |>                           # remove grouping metadata
+  select(-Microsite, -WaterTrt) |>       # now truly remove columns
+  crossing(all_combos)  
+
+# join tables together
+LitterMass_Summary_no_time0 <- LitterMass_Summary |>
+  filter(CollectionTime != 0)
+
+LitterMass_Summary_final <- bind_rows(
+  LitterMass_Summary_no_time0,
+  LitterMass_Summary_expanded
+)
+
 # plot of mean percent AFDM remaining over time by litter type, microsite, and water treatment
-p5 <- LitterMass_Summary |> 
+p5 <- LitterMass_Summary_final |> 
   filter(!is.na(WaterTrt)) |>
   ggplot(aes(x = CollectionTime, 
              y = Mean_PctAFDM_Remaining, 
-             color = LitterType)) +
+             color = LitterType,
+             linetype = LitterType,
+             shape = LitterType)) +
     geom_point() +
     geom_line() +
     geom_errorbar(aes(ymin = Mean_PctAFDM_Remaining - SE_PctAFDM_Remaining,
                       ymax = Mean_PctAFDM_Remaining + SE_PctAFDM_Remaining),
-                  width = 0.2) +
-    facet_grid(WaterTrt ~ Microsite) +
+                      width = 0.1,
+                      color = "black",        
+                      linetype = "solid") +
+    scale_color_manual(values = c("brown", "darkgreen")) +
+    scale_linetype_manual(values = c("solid", "dashed")) +
+    scale_shape_manual(values = c(16, 17)) +
+    facet_grid(Microsite ~ WaterTrt) +
     labs(x = "Collection Time", 
          y = "Mean Ash-Free Dry Mass Remaining (%)") +
+    ggtitle("Ongava 2024 Decomposition Experiment") +
     theme_bw() +
-    ggtitle("Dung and Mopane Decomposition Over Time")
+    theme(
+      panel.grid = element_blank(),              # remove all gridlines
+      legend.position = c(0.98, 0.98),           # move inside upper-right
+      legend.justification = c("right", "top"),  # anchor legend corner
+      legend.background = element_rect(fill = alpha("white", 0.8))
+    )
 p5
 
+p6 <- LitterMass_Summary_final |> 
+  filter(!is.na(WaterTrt)) |>
+  ggplot(aes(x = CollectionTime, 
+             y = Mean_PctAFDM_Remaining, 
+             color = WaterTrt,
+             linetype = WaterTrt,
+             shape = WaterTrt)) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = Mean_PctAFDM_Remaining - SE_PctAFDM_Remaining,
+                      ymax = Mean_PctAFDM_Remaining + SE_PctAFDM_Remaining),
+                      width = 0.1,
+                      color = "black",        
+                      linetype = "solid") +
+    scale_color_manual(values = c("blue", "black")) +
+    scale_linetype_manual(values = c("solid", "dashed")) +
+    scale_shape_manual(values = c(16, 17)) +
+    facet_grid(LitterType ~ Microsite) +
+    labs(x = "Collection Time", 
+         y = "Mean Ash-Free Dry Mass Remaining (%)") +
+    ggtitle("Ongava 2024 Decomposition Experiment") +
+    theme_bw(base_size = 16) +
+    theme(
+      panel.grid = element_blank(),              # remove all gridlines
+      legend.position = c(0.98, 0.98),           # move inside upper-right
+      legend.justification = c("right", "top"),  # anchor legend corner
+      legend.background = element_rect(fill = alpha("white", 0.8))
+    )
+p6
 ```
 
 ## Export Data
