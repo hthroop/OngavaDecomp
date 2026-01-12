@@ -420,6 +420,18 @@ p6 <- LitterMass_Summary_final |>
       legend.background = element_rect(fill = alpha("white", 0.8))
     )
 p6
+
+# Save the plot
+ggsave(
+   filename = file.path(
+    DERT_Archives,"OngavaDungDecay","massloss_analyses","figures","mass_loss.jpg"),
+  plot = p6,
+  device = "jpg",
+  width = 8,
+  height = 6,
+  units = "in",
+  dpi = 300
+)
 ```
 
 ## Export Data
