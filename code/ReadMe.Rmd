@@ -1,0 +1,16 @@
+# OngavaDecomp
+## code
+
+This folder includes code for analyses related to the Ongava Decomposition Experiment.
+
+"MassLoss.qmd" includes code to analyze mass loss data from the decomposition experiment.
+
+"Ongava_Kestrel_compilation.qmd" includes code to compile kestrel data from Ongava. Loggers recorded hourly data, with each logger outputting a separate file (one per monthly download). This code compiles all the data into a single file and complete some initial analysis.
+
+"OngavaPPR_WorldClim.qmd" includes code to extract WorldClim data for the Ongava sites. Historical rainfall data are explored and these data are used to come up with a planned watering regime for the decomposition experiment.
+
+Contact Information
+Heather Throop: heather.throop@asu.edu
+
+
+

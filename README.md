@@ -10,10 +10,10 @@ Note that some of the earlier code is currently not structured to pull and write
 
 The project is structured with the following folders:
 
-code: source code (.qmd) for analyses in R
-OngavaPPT_WorldClim_files: code and analyses for climate data that were used for determingin the watering treatments
-figs: these are climate data output files that have not yet been moved to be written directly to Dropbox.
-output: these are analyses that have not yet been moved to be written directly to Dropbox.
+code: source code (.qmd) for analyses in R. 
+OngavaPPT_WorldClim_files: code and analyses for climate data that were used for determining the watering treatments
+figs: these are climate data output files that have not yet been moved to be written directly to Dropbox. ** this folder is slated for removal **
+output: these are analyses that have not yet been moved to be written directly to Dropbox. ** this folder is slated for removal **
 
 Contact Information
 Heather Throop: heather.throop@asu.edu
