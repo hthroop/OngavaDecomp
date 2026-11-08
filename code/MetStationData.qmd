@@ -1,0 +1,360 @@
+---
+title: "OngavaMetData"
+author: "Heather Throop"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+Data compilation of met station data from Ongava airstrip for the decomposition experiment (2024-2026)
+
+# Overview
+
+This script reads in csv files from the airstrip met station, merges the files, and synthesizes the data.
+
+Created Nov 7, 2026 Heather Throop\
+Updated 
+
+Raw files are stored in the "MetStationData\L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder and writes figures and csv files to Dropbox as mapped with a config folder.
+
+```{r}
+#| label: load-packages
+library(here) # v. 0.1
+library(stringr) # v. 1.2.0
+library(purrr) # v. 0.2.3
+library(tidyverse)
+library(scales)
+library(lubridate)
+```
+
+Display information about package versions in use when this code was run.
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
+
+```{r}
+#| label: config-setup
+
+# This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
+DERT_Archives <- config::get()
+
+# set the time zone for the met station data
+tz <- "Africa/Windhoek"
+```
+
+# L0: Read, Clean, Combine
+
+### Read in and Combine Files
+
+```{r}
+#| label: combine-met-station-files
+
+met_dir <- file.path(DERT_Archives, "OngavaDungDecay", "MetStationData")
+
+col_names <- c(
+  "datetime",
+  "Barometer_hPa", 
+  "HighBar_hPa", 
+  "LowBar_hPa",
+  "AbsolutePressure_hPa",
+  "TempC", 
+  "HighTempC", 
+  "LowTempC",
+  "RH", 
+  "HighRH",
+  "LowRH",
+  "DewPointC", 
+  "HighDewPointC",
+  "LowDewPointC",
+  "WetBulbC", 
+  "HighWetBulbC", 
+  "LowWetBulbC",
+  "AvgWindSpeed_kmh",
+  "PrevailWindDirection",
+  "HighWindSpeed_kmh", 
+  "HighWindDirection",
+  "WindChillC", 
+  "LowWindChillC",
+  "HeatIndexC", 
+  "HighHeatIndexC",
+  "THWIndexC", 
+  "HighTHWIndexC", 
+  "LowTHWIndexC",
+  "WindRun_km", 
+  "Rain_mm", 
+  "HighRainRate_mm_h",
+  "HeatingDegreeDays", 
+  "CoolingDegreeDays"
+)
+
+files <- list.files(file.path(met_dir, "L0"), pattern = "\\.csv$",
+                    full.names = TRUE, ignore.case = TRUE)
+stopifnot("No CSV files found in L0 folder" = length(files) > 0)
+
+met_data <- files |>
+  set_names(basename(files)) |>
+  map_dfr(
+    ~ read_csv(.x,
+               skip = 6,                 # drop the 6 met-station header rows
+               col_names = col_names,
+               col_types = cols(.default = col_character()),  # read as text so files bind cleanly
+               na = c("", "NA", "---"),
+               progress = FALSE),
+    .id = "source_file"
+  ) |>
+  type_convert(guess_integer = FALSE)
+
+met_data <- met_data |>
+  mutate(datetime = mdy_hm(datetime, tz = "Africa/Windhoek"))   # "6/1/24 12:45 PM"
+
+tz <- "Africa/Windhoek"
+
+# make an L1 file that only includes data from June 15, 2024 to Oct 15, 2025 (the period of the decomposition experiment)
+met_L1 <- met_data |>
+  filter(datetime >= ymd("2024-06-15", tz = tz),
+         datetime <  ymd("2025-10-16", tz = tz))   # keeps all of Oct 15, 2025
+
+# write the L1 file as a csv
+write_csv(
+  met_L1 |> mutate(datetime = format(datetime, "%Y-%m-%d %H:%M:%S", tz = tz)),
+  file.path(met_dir, "metdata_L1.csv")
+)
+
+```
+
+# L1: Data Exploration
+
+```{r}
+
+theme_set(theme_bw(base_size = 12))
+
+p_temp <- ggplot(met_L1, aes(datetime, TempC)) +
+  ggtitle("AirStrip Met Station") +
+  geom_line(linewidth = 0.3, na.rm = TRUE) +
+  labs(x = NULL, y = "Temperature (°C)")
+p_temp
+
+p_rh <- ggplot(met_L1, aes(datetime, RH)) +
+  ggtitle("AirStrip Met Station") +
+  geom_line(linewidth = 0.3, na.rm = TRUE) +
+  labs(x = NULL, y = "Relative Hhumidity (%)")
+p_rh
+
+# sum daily rain
+rain_daily <- met_L1 |>
+  mutate(date = as.Date(datetime, tz = "Africa/Windhoek")) |>
+  group_by(date) |>
+  summarise(Rain_mm = sum(Rain_mm, na.rm = TRUE))
+
+p_rain <- ggplot(rain_daily, aes(date, Rain_mm)) +
+  ggtitle("Daily Rainfall - AirStrip Met Station") +
+  geom_col() +
+  labs(x = "Date", y = "Daily Rainfall (mm)")
+p_rain
+```
+
+```{r}
+#| label: reduce-met-data
+
+# reduce the met station data to hourly averages for the decomposition experiment period
+met_hr <- met_L1 |>
+  mutate(datetime = floor_date(datetime, "hour")) |>
+  group_by(datetime) |>
+  summarise(met_TempC    = mean(TempC, na.rm = TRUE),
+            met_RH       = mean(RH, na.rm = TRUE),
+            met_Rain_mm  = sum(Rain_mm, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(across(c(met_TempC, met_RH), ~ if_else(is.nan(.x), NA_real_, .x)),
+         daytime = hour(datetime) %in% 7:18)    # crude day/night; adjust to season if needed
+
+# full hourly grid for the experiment
+grid <- tibble(datetime = seq(ymd_hms("2024-06-15 00:00:00", tz = tz),
+                              ymd_hms("2025-10-15 23:00:00", tz = tz),
+                              by = "hour")) |>
+  left_join(met_hr, by = "datetime") |>
+  mutate(daytime = hour(datetime) %in% 7:18)
+```
+
+```{r}
+
+kestrel_path <- file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData",
+                          "L2", "Ongava_kestrel_L2_hourlymeans.csv")
+
+kestrel <- read_csv(kestrel_path, show_col_types = FALSE) |>
+  transmute(
+    microsite = Microsite,
+    precip    = WaterTrt,
+    datetime  = force_tz(hour, tzone = tz),   # see timezone note below
+    TempC     = mean_T,
+    RH        = mean_RH
+  ) |>
+  inner_join(met_hr |> select(-daytime), by = "datetime") |>
+  mutate(daytime = hour(datetime) %in% 7:18,
+         week    = floor_date(datetime, "week"))
+
+fit_one <- function(d, y, x) {
+  f <- reformulate(c(paste0(x, " * daytime")), response = y)
+  lm(f, data = d)
+}
+
+# blocked CV by week: leave out each week, predict it, pool the errors
+cv_rmse <- function(d, y, x) {
+  wk <- unique(d$week)
+  err <- map(wk, \(w) {
+    tr <- filter(d, week != w); te <- filter(d, week == w)
+    m  <- fit_one(tr, y, x)
+    te[[y]] - predict(m, te)
+  }) |> unlist()
+  sqrt(mean(err^2, na.rm = TRUE))
+}
+
+models <- kestrel |>
+  group_by(microsite, precip) |>
+  nest() |>
+  mutate(
+    m_temp = map(data, ~ fit_one(drop_na(.x, TempC, met_TempC), "TempC", "met_TempC")),
+    m_rh   = map(data, ~ fit_one(drop_na(.x, RH, met_RH), "RH", "met_RH")),
+    r2_temp   = map_dbl(m_temp, ~ summary(.x)$r.squared),
+    r2_rh     = map_dbl(m_rh,   ~ summary(.x)$r.squared),
+    cvrmse_temp = map_dbl(data, ~ cv_rmse(drop_na(.x, TempC, met_TempC), "TempC", "met_TempC")),
+    cvrmse_rh   = map_dbl(data, ~ cv_rmse(drop_na(.x, RH, met_RH), "RH", "met_RH"))
+  )
+
+models |> select(microsite, precip, r2_temp, cvrmse_temp, r2_rh, cvrmse_rh)
+```
+
+```{r}
+kestrel_filled <- models |>
+  mutate(pred = pmap(list(m_temp, m_rh), \(mt, mr) {
+    grid |>
+      mutate(TempC_pred = predict(mt, newdata = grid),
+             RH_pred    = predict(mr, newdata = grid))
+  })) |>
+  select(microsite, precip, pred) |>
+  unnest(pred) |>
+  left_join(kestrel |> select(microsite, precip, datetime, TempC_obs = TempC, RH_obs = RH),
+            by = c("microsite", "precip", "datetime")) |>
+  mutate(
+    TempC_filled = !is.na(TempC_obs),
+    TempC        = coalesce(TempC_obs, TempC_pred),
+    TempC_source = if_else(is.na(TempC_obs), "modeled", "observed"),
+    RH           = pmin(pmax(coalesce(RH_obs, RH_pred), 0), 100),   # keep RH within 0-100
+    RH_source    = if_else(is.na(RH_obs), "modeled", "observed")
+  ) |>
+  select(datetime, microsite, precip, TempC, TempC_source, RH, RH_source)
+
+# note: rows stay NA where the met station itself had a gap (no predictor available)
+kestrel_filled |> count(microsite, precip, TempC_source, is.na(TempC))
+```
+
+```{r}
+src_cols <- c(observed = "#0072B2", modeled = "#E69F00")
+
+plot_filled <- function(data, y, ylab) {
+  ggplot(data, aes(datetime, .data[[y]], color = .data[[paste0(y, "_source")]], group = 1)) +
+    geom_line(linewidth = 0.25, na.rm = TRUE) +
+    facet_grid(microsite ~ precip) +
+    scale_color_manual(values = src_cols, name = NULL) +
+    scale_x_datetime(date_labels = "%b %y", date_breaks = "3 months") +
+    labs(x = NULL, y = ylab) +
+    guides(color = guide_legend(override.aes = list(linewidth = 1.2))) +
+    theme_minimal(base_size = 12) +
+    theme(legend.position = "top",
+          panel.grid.minor = element_blank(),
+          strip.text = element_text(face = "bold"))
+}
+
+p_temp <- plot_filled(kestrel_filled, "TempC", "Temperature (°C)")
+p_rh   <- plot_filled(kestrel_filled, "RH",    "Relative humidity (%)")
+
+p_temp
+p_rh
+
+```
+
+```{r}
+daily <- kestrel_filled |>
+  mutate(date = as.Date(datetime, tz = tz)) |>
+  group_by(microsite, precip, date) |>
+  summarise(frac_modeled = mean(TempC_source == "modeled"),
+            TempC = mean(TempC, na.rm = TRUE),
+            RH    = mean(RH, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(TempC_source = if_else(frac_modeled > 0.5, "modeled", "observed"),
+         RH_source    = TempC_source,
+         datetime     = as.POSIXct(date, tz = tz))
+
+plot_filled(daily, "TempC", "Daily mean temperature (°C)")
+```
+
+```{r}
+# ---- 1. Cross-validated predictions for hours with observed Kestrel data ----
+cv_preds <- function(d, y, x) {
+  d  <- drop_na(d, all_of(c(y, x)))
+  wk <- unique(d$week)
+  map_dfr(seq_along(wk), \(i) {
+    tr <- filter(d, week != wk[i])
+    te <- filter(d, week == wk[i])
+    te |> mutate(pred = predict(fit_one(tr, y, x), newdata = te))
+  }) |>
+    transmute(microsite, precip, datetime, obs = .data[[y]], pred)
+}
+
+cv_all <- kestrel |>
+  group_split(microsite, precip) |>
+  map_dfr(\(d) bind_rows(
+    cv_preds(d, "TempC", "met_TempC") |> mutate(variable = "Temperature (°C)"),
+    cv_preds(d, "RH",    "met_RH")    |> mutate(variable = "Relative humidity (%)")
+  ))
+
+# ---- 2. Fit statistics per treatment x variable ----------------------------
+cv_stats <- cv_all |>
+  group_by(variable, microsite, precip) |>
+  summarise(n    = n(),
+            bias = mean(pred - obs),
+            rmse = sqrt(mean((pred - obs)^2)),
+            r2   = cor(pred, obs)^2,
+            .groups = "drop") |>
+  mutate(label = sprintf("R² = %.2f\nRMSE = %.1f\nbias = %.1f", r2, rmse, bias))
+
+print(cv_stats, n = Inf)
+
+# ---- 3. Predicted vs observed with 1:1 line ---------------------------------
+plot_obs_pred <- function(var) {
+  ggplot(filter(cv_all, variable == var), aes(obs, pred)) +
+    geom_point(alpha = 0.08, size = 0.6, color = "#0072B2") +
+    geom_abline(slope = 1, intercept = 0, color = "grey30", linewidth = 0.5) +
+    geom_text(data = filter(cv_stats, variable == var), aes(label = label),
+              x = -Inf, y = Inf, hjust = -0.1, vjust = 1.1, size = 3, inherit.aes = FALSE) +
+    facet_grid(microsite ~ precip) +
+    coord_equal() +
+    labs(x = paste("Observed Kestrel -", var),
+         y = paste("Modeled (cross-validated) -", var)) +
+    theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank(), strip.text = element_text(face = "bold"))
+}
+
+plot_obs_pred("Temperature (°C)")
+plot_obs_pred("Relative humidity (%)")
+
+# ---- 4. Time-series overlay: observed vs modeled over a short window --------
+win <- c(ymd("2025-03-01", tz = tz), ymd("2025-03-15", tz = tz))   # adjust to a period with data
+
+cv_all |>
+  filter(datetime >= win[1], datetime < win[2]) |>
+  pivot_longer(c(obs, pred), names_to = "source", values_to = "value") |>
+  mutate(source = recode(source, obs = "observed", pred = "modeled")) |>
+  ggplot(aes(datetime, value, color = source)) +
+  geom_line(linewidth = 0.4) +
+  facet_grid(variable ~ microsite + precip, scales = "free_y") +
+  scale_color_manual(values = c(observed = "#0072B2", modeled = "#E69F00"), name = NULL) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "top", panel.grid.minor = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+```
+

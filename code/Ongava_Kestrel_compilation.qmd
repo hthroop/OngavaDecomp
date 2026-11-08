@@ -257,19 +257,48 @@ ggsave(
 #| label: hourly-treatment-means
 # create df that condenses the multiple loggers per microsite and water treatment down to one mean value per hour
 
-L2_hourlymeans_df <- L1_kestrel_data |>
-  group_by(Microsite, WaterTrt, time) |>
+L2_hourlymeans <- L1_kestrel_data |>
+  mutate(hour = floor_date(time, unit = "hour")) |>
+  group_by(Microsite, WaterTrt, hour) |>
   summarize(
-               N    = sum(!is.na(RH)),
-               mean_T = mean(temperature, na.rm=TRUE),
-               sd_T   = sd(temperature, na.rm=TRUE),
-               se_T   = sd_T / sqrt(N),
-               mean_RH = mean(RH, na.rm=TRUE),
-               sd_RH   = sd(RH, na.rm=TRUE),
-               se_RH   = sd_RH / sqrt(N)
-               )
+    N_T     = sum(!is.na(temperature)),
+    mean_T  = mean(temperature, na.rm = TRUE),
+    sd_T    = sd(temperature, na.rm = TRUE),
+    se_T    = sd_T / sqrt(N_T),
+    N_RH    = sum(!is.na(RH)),
+    mean_RH = mean(RH, na.rm = TRUE),
+    sd_RH   = sd(RH, na.rm = TRUE),
+    se_RH   = sd_RH / sqrt(N_RH),
+    .groups = "drop"
+  )
+
+#save the output as a .csv file - this is the combined L2 data that has been condensed into hourly means by treatment
+write_csv(L2_hourlymeans,
+  file.path(DERT_Archives, "OngavaDungDecay","MicroclimateData",
+            "L2", "Ongava_kestrel_L2_hourlymeans.csv"))
 
 ```
+
+```{r}
+#| label: daily-treatment-means
+# create df that condenses to daily values
+
+L2_dailystats_df <- L1_kestrel_data |>
+  mutate(date = as.Date(time, tz = tz(time))) |>
+  group_by(Microsite, WaterTrt, date) |>
+  summarize(
+    N_T      = sum(!is.na(temperature)),
+    mean_T   = mean(temperature, na.rm = TRUE),
+    min_T    = min(temperature, na.rm = TRUE),
+    max_T    = max(temperature, na.rm = TRUE),
+    N_RH     = sum(!is.na(RH)),
+    mean_RH  = mean(RH, na.rm = TRUE),
+    min_RH   = min(RH, na.rm = TRUE),
+    max_RH   = max(RH, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
 
 ## Plots of hourly means
 
@@ -279,8 +308,8 @@ L2_hourlymeans_df <- L1_kestrel_data |>
 #| label: RH-by-treatment
 
 # plots of hourly means by treatment - RH
-p3 <- L2_hourlymeans_df |>
-  ggplot(aes(x=time, y=mean_RH, color = WaterTrt, linetype = WaterTrt)) + 
+p3 <- L2_hourlymeans |>
+  ggplot(aes(x=hour, y=mean_RH, color = WaterTrt, linetype = WaterTrt)) + 
   geom_line() +
   theme_bw() +
   ylab("Relative Humidity (%)") +
@@ -308,8 +337,8 @@ ggsave(
 #| label: temperature-by-treatment
 
 # plots of hourly means by treatment - temperature
-p4 <- L2_hourlymeans_df |>
-ggplot(aes(x=time, y=mean_T, color = WaterTrt, linetype = WaterTrt)) + 
+p4 <- L2_hourlymeans |>
+ggplot(aes(x=hour, y=mean_T, color = WaterTrt, linetype = WaterTrt)) + 
   geom_line() +
   theme_bw() +
   ylab("Temperature (C)") +
@@ -330,3 +359,123 @@ ggsave(
 )
 
 ```
+
+## Plots of daily values
+
+```{r}
+# remove data from days with gaps in the data (e.g., logger not working or not deployed)
+L2_daily_runs <- L2_dailystats_df |>
+  arrange(Microsite, WaterTrt, date) |>
+  group_by(Microsite, WaterTrt) |>
+  mutate(run = cumsum(c(TRUE, diff(date) > 3))) |>   # new run after a gap > 3 days
+  ungroup() |>
+  mutate(grp = interaction(Microsite, WaterTrt, run))
+```
+
+
+### Temperature
+
+```{r}
+#| label: meanT-by-treatment
+
+# plots of hourly means by treatment - RH
+p5 <- L2_daily_runs |>
+  ggplot(aes(x = date, y = mean_T, color = WaterTrt, linetype = WaterTrt, group = grp)) +
+  geom_line() +
+  theme_bw() +
+  ylab(expression("Daily Mean T ("*degree*C*")")) +
+  xlab("") +
+  facet_grid(Microsite ~ WaterTrt) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
+p5
+
+```
+
+```{r}
+#| label: maxT-by-treatment
+
+# plots of hourly max by treatment - RH
+p5max <- L2_daily_runs |>
+  ggplot(aes(x = date, y = max_T, color = WaterTrt, linetype = WaterTrt, group = grp)) +
+  geom_line() +
+  theme_bw() +
+  ylab(expression("Daily Maximum T ("*degree*C*")")) +
+  xlab("") +
+  facet_grid(Microsite ~ WaterTrt) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
+p5max
+```
+
+```{r}
+#| label: minT-by-treatment
+
+# plots of hourly mins by treatment - RH
+p5min <- L2_daily_runs |>
+  ggplot(aes(x = date, y = min_T, color = WaterTrt, linetype = WaterTrt, group = grp)) +
+  geom_line() +
+  theme_bw() +
+  ylab(expression("Daily Minimum T ("*degree*C*")")) +
+  xlab("") +
+  facet_grid(Microsite ~ WaterTrt) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
+p5min
+```
+
+
+### RH
+
+```{r}
+#| label: meanRH-by-treatment
+
+# plots of hourly means by treatment - RH
+p6 <- L2_daily_runs |>
+  ggplot(aes(x = date, y = mean_RH, color = WaterTrt, linetype = WaterTrt, group = grp)) +
+  geom_line() +
+  theme_bw() +
+  ylab("Daily Mean RH (%)") +
+  xlab("") +
+  facet_grid(Microsite ~ WaterTrt) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
+p6
+
+```
+
+```{r}
+#| label: maxRH-by-treatment
+
+# plots of hourly means by treatment - RH
+p6max <- L2_daily_runs |>
+  ggplot(aes(x = date, y = max_RH, color = WaterTrt, linetype = WaterTrt, group = grp)) +
+  geom_line() +
+  theme_bw() +
+  ylab("Daily Max RH (%)") +
+  xlab("") +
+  facet_grid(Microsite ~ WaterTrt) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
+p6max
+```
+
+```{r}
+#| label: minRH-by-treatment
+
+# plots of hourly min by treatment - RH
+p6min <- L2_daily_runs |>
+  ggplot(aes(x = date, y = min_RH, color = WaterTrt, linetype = WaterTrt, group = grp)) +
+  geom_line() +
+  theme_bw() +
+  ylab("Daily Minimum RH (%)") +
+  xlab("") +
+  facet_grid(Microsite ~ WaterTrt) +
+  scale_color_manual(values = c("Addition" = "blue", "Ctrl" = "red")) +
+  scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
+p6min
+```
+
+
+# Microsite and Treatment Differences
+

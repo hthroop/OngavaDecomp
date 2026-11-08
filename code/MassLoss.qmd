@@ -124,7 +124,7 @@ WetDry <- read_csv(
 # Litter mass data 
 LitterMass <- read_csv(
   file.path(DERT_Archives, "OngavaDungDecay","massloss_analyses",
-            "data", "LitterMass.csv"), 
+            "data", "LitterMass_L1.csv"), 
   show_col_types = FALSE)
 LitterMass <- LitterMass |>
   mutate(WaterTrt = as.factor(WaterTrt),
@@ -432,6 +432,35 @@ ggsave(
   units = "in",
   dpi = 300
 )
+```
+
+## Data Cleaning
+
+TO DO: need to do some cleaning to get rid of the over 100% mass remaining in later collections
+
+```{r}
+p7 <- LitterMass |> 
+  filter(!is.na(WaterTrt)) |>
+  ggplot(aes(x = CollectionTime, 
+             y = PctAFDM_Remaining, 
+             color = WaterTrt,
+             shape = WaterTrt)) +
+    geom_point() +
+    scale_color_manual(values = c("blue", "black")) +
+    scale_linetype_manual(values = c("solid", "dashed")) +
+    scale_shape_manual(values = c(16, 17)) +
+    facet_grid(LitterType ~ Microsite) +
+    labs(x = "Collection Time", 
+         y = "Mean Ash-Free Dry Mass Remaining (%)") +
+    ggtitle("Ongava 2024 Decomposition Experiment") +
+    theme_bw(base_size = 16) +
+    theme(
+      panel.grid = element_blank(),              # remove all gridlines
+      legend.position = c(0.98, 0.98),           # move inside upper-right
+      legend.justification = c("right", "top"),  # anchor legend corner
+      legend.background = element_rect(fill = alpha("white", 0.8))
+    )
+p7
 ```
 
 ## Export Data
