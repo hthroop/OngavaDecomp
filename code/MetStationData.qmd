@@ -14,7 +14,7 @@ Data compilation of met station data from Ongava airstrip for the decomposition 
 This script reads in csv files from the airstrip met station, merges the files, and synthesizes the data.
 
 Created Nov 7, 2026 Heather Throop\
-Updated 
+Updated
 
 Raw files are stored in the "MetStationData\L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder and writes figures and csv files to Dropbox as mapped with a config folder.
 
@@ -357,4 +357,3 @@ cv_all |>
         strip.text = element_text(face = "bold"))
 
 ```
-
