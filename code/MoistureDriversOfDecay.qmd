@@ -1,0 +1,955 @@
+---
+title: "Ongava Decomposition Moisture Drivers"
+author: 
+  - id: hthroop
+    name: 
+      given: Heahter 
+      family: Throop
+    attributes:
+      corresponding: true
+date: last-modified
+date-format: YYYY-MM-DDTHH:mm:ssZ
+bibliography: references.bib
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+editor: 
+  markdown: 
+    wrap: sentence
+---
+
+# Set up
+
+This document is a rendered R markdown (quarto) that was developed to reproduce the analysis for the Decomposition Across Drylands Moisture Drivers 2026 manuscript by Kathe Todd-Brown.
+Heather Throop modified this to use for application of the moisture drivers with the Ongava decomposition experiment.
+
+# Variable Names
+
+**Experimental design variables**
+
+microsite: The microsite where the Kestrel loggers were placed.
+Allowable values = open, tree.
+
+precip: The precipitation treatment applied to the plot.
+Ctrl plots receive ambient rain and Addition plots receive ambient rain plus supplemental watering.
+Allowable values = Ctrl, Addition.
+
+timeStamp: The start of each hourly record, in local time (Africa/Windhoek, UTC+2).
+Allowable values = 2024-06-15 00:00 to 2025-10-15 23:00, in hourly steps.
+Units = date-time (POSIXct).
+
+elapsed_days: Time since the first record of the experiment (2024-06-15 00:00), calculated separately for each microsite × precip combination.
+Allowable values = 0 to 487.96.
+Units = days.
+
+**Measured variables**
+
+obsValue_RHMean: Hourly relative humidity at ground level, the mean of the Kestrel loggers in each treatment.
+Hours with no Kestrel data are filled with values modeled from the airstrip met station (see RH_source).
+Allowable values = 0-100.
+Units = %.
+
+obsValue_tempRHMean: Hourly air temperature at ground level, the mean of the Kestrel loggers in each treatment.
+Hours with no Kestrel data are filled with values modeled from the met station (see TempC_source).
+The name comes from the original NEON code, where it means temperature measured by the RH sensor.
+Allowable values = real numbers, with the observed range to be confirmed.
+NA where the met station had a gap and no Kestrel value exists.
+Units = °C.
+
+RH_source: Whether the RH value was measured or modeled.
+Allowable values = observed, modeled.
+Modeled is also used where the value is NA.
+
+TempC_source: Whether the temperature value was measured or modeled.
+Allowable values = observed, modeled.
+Modeled is also used where the value is NA.
+
+metTempC: Hourly mean air temperature from the Ongava airstrip met station (mean of the 15-minute records).
+Used only to calculate PET.
+Allowable values = real numbers, NA if no met data for that hour.
+Units = °C.
+
+metDewPointC: Hourly mean dew point from the Ongava airstrip met station.
+Used only to calculate PET.
+Allowable values = real numbers, NA if no met data for that hour.
+Units = °C.
+
+**Calculated variables**
+
+obsValue_precipBulk: Hourly precipitation reaching the plot.
+For Ctrl this is the airstrip met station rainfall.
+For Addition it is met station rainfall plus the supplemental watering, converted from L to mm using the 1 m diameter plot area and added at 08:00 on watering days.
+Allowable values = 0 or greater.
+NA if met rainfall is missing.
+Units = mm hr-1.
+
+obsDurationDay_RHMean, obsDurationDay_tempRHMean, obsDurationDay_precipBulk: The fraction of a day covered by each hourly record.
+Allowable values = 0.041667 (1/24).
+Units = days.
+
+leaf_wetness_prob: The probability that litter is wet at the observed RH, from the Evans et al. (2020) leaf wetness curve (5% RH bins).
+Allowable values = 0-1.
+NA if RH is NA.
+Units = hr hr-1.
+
+wetDuration_RH: Wet time in each hour estimated from the condensation likelihood proxy (obsDurationDay_RHMean × leaf_wetness_prob).
+Allowable values = 0-0.041667.
+Units = days.
+
+cumWetDuration_RH: Cumulative sum of wetDuration_RH over time within each treatment.
+Missing hours add nothing to the sum.
+Allowable values = 0 or greater, never decreasing.
+Units = days.
+
+Gibbs_equlim_moisture: Equilibrium gravimetric moisture content of the litter at the observed RH and temperature (Nelson 1984; Cheatgrass constants from Anderson 1990).
+Allowable values = about 0-0.35 over 0-100% RH, and non-finite at exactly 0% or 100% RH.
+Units = g water g-1 litter.
+
+Gibbs_min_moisture: Equilibrium moisture at 10% RH, the lower limit of the calibrated range, at the observed temperature.
+Allowable values = positive numbers, about 0.03.
+Units = g water g-1 litter.
+
+Gibbs_max_moisture: Equilibrium moisture at 90% RH, the upper limit of the calibrated range, at the observed temperature.
+Allowable values = positive numbers, about 0.2.
+Units = g water g-1 litter.
+
+Gibbs_modifier: Decay moisture modifier from the Gibbs model.
+It is 0 below 10% RH and equals Gibbs_equlim_moisture between 10 and 90% RH.
+Above 90% RH it increases linearly from Gibbs_max_moisture to 1 at 100% RH.
+Allowable values = 0-1.
+Units = unitless.
+
+wetDuration_GibbsMoisture: Wet time in each hour estimated from the Gibbs proxy (obsDurationDay_RHMean × Gibbs_modifier).
+Allowable values = 0-0.041667.
+Units = days.
+
+cumWetDuration_GibbsMoisture: Cumulative sum of wetDuration_GibbsMoisture over time within each treatment.
+Allowable values = 0 or greater, never decreasing.
+Units = days.
+
+evapo_mm_penmen: Potential evapotranspiration (open-water form) calculated with the Linacre (1977) equation from met station temperature and dew point, site latitude and elevation.
+The daily value is scaled to one hour.
+Despite the “penmen” name, this is not Penman-Monteith.
+Allowable values = 0 or greater, NA if met temperature or dew point is missing.
+Units = mm hr-1.
+
+bucketPrecipFlux: Precipitation input to the bucket model (obsValue_precipBulk, with NA set to 0 for the model run).
+Allowable values = 0 or greater.
+Units = mm hr-1.
+
+bucketPET: Evaporative loss from the bucket model (the negative of evapo_mm_penmen, with NA set to 0).
+Allowable values = 0 or less.
+Units = mm hr-1.
+
+bucketBalance_litter, bucketBalance_surface, bucketBalance_top, bucketBalance_reserve: The water held in each bucket at the end of each hour.
+NA where PET or precipitation is missing.
+Allowable values = 0-0.6 (litter), 0-10 (surface), 0-100 (top), 0-10000 (reserve).
+Units = mm.
+
+bucketFillFrac_litter, bucketFillFrac_surface: Fraction of bucket capacity that is full (bucketBalance divided by the bucket size).
+Allowable values = 0-1.
+Units = unitless.
+
+wetDuration_bucket: Wet time in each hour estimated from the bucket model (bucketFillFrac_litter × obsDurationDay_precipBulk).
+Allowable values = 0-0.041667.
+Units = days.
+
+cumWetDuration_bucket: Cumulative sum of wetDuration_bucket over time within each treatment.
+Allowable values = 0 or greater, never decreasing.
+Units = days.
+
+wetDuration_max: Tri-max wet time in each hour, the largest of wetDuration_bucket, wetDuration_RH and wetDuration_GibbsMoisture.
+It is 0 if any of the three is missing.
+Allowable values = 0-0.041667.
+Units = days.
+
+max_componetWinner: The proxy that gave the Tri-max value for that hour.
+Ties go to bucket, then Evans, then Gibbs.
+The spelling “componet” is from the original code.
+Allowable values = bucket, Evans, Gibbs, NA (when any component is missing).
+
+max_obsDurationDay: The fraction of a day covered by the winning component’s record.
+Allowable values = 0.041667 (1/24).
+Units = days.
+
+cumWetDuration_max: Cumulative sum of wetDuration_max over time within each treatment.
+Allowable values = 0 or greater, never decreasing.
+Units = days.
+
+**Model constants and site parameters**
+
+Evans curve (EvansCurve; wet bins only): RH_min, RH_max: lower and upper RH bounds of each 5% bin (% RH).
+frac: fraction of hours the leaf wetness sensor was wet in that bin (0-1; hr hr-1).
+count, RH_obs: wet hours and total hours observed in the bin (hours).
+RH_bin, Wet_factor, RH_group: bin label, sensor state (wet) and bin rank.
+
+gas_const: Universal gas constant.
+Value = 1.987.
+Units = cal mol-1 K-1.
+
+water_molarMass: Molar mass of water.
+Value = 18.
+Units = g mol-1.
+
+GibbsConst_A, GibbsConst_B: Calibrated species constants for Cheatgrass from Anderson (1990).
+Values = 4.9145 and -18.15.
+Units = unitless.
+
+latitude_deg, elevation_m: Latitude and elevation of the decomposition experiment, used for PET.
+Values = -19.354195 degrees and 1153 m.
+
+hydroBuckets: Maximum water capacity of each bucket.
+Values = litter 0.6, surface 10, top 100, reserve 10000.
+Units = mm.
+
+incomingAlloction: Fraction of incoming precipitation sent to each bucket.
+Values = litter 0.5, surface 0.5, top 0, reserve 0.
+Units = fraction, must sum to 1.
+
+## Libraries and files
+
+```{r}
+#| label: setup
+#| message: false #mute tidyverse outputs
+
+library(tidyverse)
+library(kableExtra)
+library(neonUtilities)
+library(patchwork) #make composition plots
+library(bibtex)
+```
+
+```{r}
+#| label: config-setup
+
+# This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
+DERT_Archives <- config::get()
+
+met_dir <- file.path(DERT_Archives, "OngavaDungDecay", "MetStationData")
+rainfall_dir <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData")
+```
+
+We consider four models for litter wetness in this analysis:
+
+1)  **Condensation likelihood** derived from hourly relative humidity and leaf wetness observations across a year
+2)  **Equilbrium moisture** derived from a Gibbs equilibrium assumption driven by relative humidity and temperature.
+3)  **Bucket model** derived from water vapor flux (latent heat) and precipitation
+4)  **Tri-max** derived from the maximum of the condensation probability, equilbrium, and bucket model
+
+## Condensation likelihood
+
+Leaf wetness probability relies on hourly paired relative humidity and leaf wetness sensor observations over the course of a year to calculate how likely the leaf wetness sensor was wet during a particular hourly relative humidity value.
+The likelihood values are then treated as a fractional duration and is ment to be interpolated as cumulative over the course of a year or more time period (@Evans2020).
+We use probabilities calculated from two Nambia dryland sites and a US mesic grassland with relative humidity binned to a 5% range, bin size was minimum size that exhibited smooth probability function.
+
+### Figure S8: Condensation likelihood function {.unnumbered}
+
+```{r}
+#| label: EvansCurve
+#| fig-width: 5
+#| fig-height: 3
+
+#Data frame constructed from data provided from the Evans 2020 study
+EvansCurve <- tribble(
+~RH_bin,~Wet_factor,~count,~frac,~RH_obs,~RH_min,~RH_max,
+"(82.5,87.5]",'wet',811,0.6878710771840543,1179,82.5,87.5,
+"(87.5,92.5]",'wet',1086,0.8843648208469055,1228,87.5,92.5,
+"(92.5,97.5]",'wet',1566,0.9672637430512662,1619,92.5,97.5,
+"(97.5,102]",'wet',1405,0.9915314043754411,1417,97.5,102,
+"(82.5,87.5]",'dry',368,0.31212892281594573,1179,82.5,87.5,
+"(67.5,72.5]",'dry',689,0.8710493046776233,791,67.5,72.5,
+"(57.5,62.5]",'dry',602,0.9632,625,57.5,62.5,
+"(52.5,57.5]",'dry',607,0.9950819672131147,610,52.5,57.5,
+"(62.5,67.5]",'dry',542,0.9312714776632303,582,62.5,67.5,
+"(77.5,82.5]",'wet',554,0.5134383688600556,1079,77.5,82.5,
+"(67.5,72.5]",'wet',102,0.12895069532237674,791,67.5,72.5,
+"(47.5,52.5]",'dry',624,0.9936305732484076,628,47.5,52.5,
+"(42.5,47.5]",'dry',608,0.9934640522875817,612,42.5,47.5,
+"(37.5,42.5]",'dry',738,0.9972972972972973,740,37.5,42.5,
+"(32.5,37.5]",'dry',753,0.9986737400530504,754,32.5,37.5,
+"(72.5,77.5]",'dry',595,0.7418952618453866,802,72.5,77.5,
+"(77.5,82.5]",'dry',525,0.4865616311399444,1079,77.5,82.5,
+"(72.5,77.5]",'wet',207,0.2581047381546135,802,72.5,77.5,
+"(87.5,92.5]",'dry',142,0.11563517915309446,1228,87.5,92.5,
+"(92.5,97.5]",'dry',53,0.032736256948733784,1619,92.5,97.5,
+"(27.5,32.5]",'dry',944,0.9989417989417989,945,27.5,32.5,
+"(62.5,67.5]",'wet',40,0.06872852233676977,582,62.5,67.5,
+"(22.5,27.5]",'dry',1016,0.9980353634577603,1018,22.5,27.5,
+"(57.5,62.5]",'wet',23,0.0368,625,57.5,62.5,
+"(42.5,47.5]",'wet',4,0.006535947712418301,612,42.5,47.5,
+"(97.5,102]",'dry',12,0.008468595624558928,1417,97.5,102,
+"(17.5,22.5]",'dry',1097,1,1097,17.5,22.5,
+"(12.5,17.5]",'dry',1004,1,1004,12.5,17.5,
+"(7.5,12.5]",'dry',711,1,711,7.5,12.5,
+"(2.5,7.5]",'dry',200,1,200,2.5,7.5,
+"(52.5,57.5]",'wet',3,0.004918032786885246,610,52.5,57.5,
+"(27.5,32.5]",'wet',1,0.0010582010582010583,945,27.5,32.5,
+"(37.5,42.5]",'wet',2,0.002702702702702703,740,37.5,42.5,
+"(32.5,37.5]",'wet',1,0.001326259946949602,754,32.5,37.5,
+"(22.5,27.5]",'wet',2,0.0019646365422396855,1018,22.5,27.5,
+"(47.5,52.5]",'wet',4,0.006369426751592357,628,47.5,52.5,
+"[-2.5,2.5]",'dry',6,1,6,-2.5,2.5) |> 
+         filter(Wet_factor == 'wet') |>
+  mutate(RH_group = rank(RH_min))
+
+ggplot(EvansCurve ) +
+  geom_segment(aes(y = frac, yend =frac, 
+                   x = RH_min, xend = RH_max)) +
+  # geom_line(data = tibble(RH = 1:100), #aproximate fit function
+  #           aes(x=RH, y = RH^16 / (RH^16 + 80^16))) + 
+  theme_bw() +
+  labs(title = 'Leaf wetness probability curve',
+       x = 'Relative humidity (%)',
+       y = 'Fraction of wet hours observed (hr hr-1)')
+  
+```
+
+```{=html}
+<!---
+Roughly 
+
+Prob = RH^16/(RH^16+80^16); my fit to the bin means
+Pred = 1.012*Obs-0.006
+Rsq = 0.998 (N=12)
+---->
+```
+
+Build a proxies.df using the kestrel_filled df so that we can use original drivers code with minimal editing.
+
+```{r}
+#| label: buildProxies
+
+# one row per hour per microsite x precip treatment (replaces the NEON site/resolution structure)
+proxies.df <- kestrel_filled |>
+  ungroup() |>
+  arrange(microsite, precip, datetime) |>
+  transmute(microsite, precip,
+            timeStamp = datetime,
+            obsValue_RHMean         = RH,
+            obsValue_tempRHMean     = TempC,
+            obsValue_precipBulk     = Rain_mm,
+            obsDurationDay_RHMean   = 1/24,   # each hourly obs covers 1/24 of a day
+            obsDurationDay_tempRHMean = 1/24,
+            obsDurationDay_precipBulk = 1/24,
+            RH_source, TempC_source) |>
+  mutate(elapsed_days = as.numeric(difftime(timeStamp, min(timeStamp), units = "days")),
+         .by = c(microsite, precip))
+```
+
+```{r}
+#| label: calcRHProxy
+#| fig-width: 6
+#| fig-height: 4
+#| message: false
+#| code-summary: 'Calculate relative humidity wetness likelihood (Evans Curve).'
+
+# EvansCurve comes from the EvansCurve chunk; sort bins so findInterval() works
+EvansBins <- EvansCurve |> arrange(RH_min)
+
+proxies.df <- proxies.df |>
+  mutate(
+    # vectorized lookup: bin = last RH_min <= RH; 0 at or below the lowest wet bin
+    leaf_wetness_prob = EvansBins$frac[pmax(findInterval(obsValue_RHMean, EvansBins$RH_min), 1)],
+    leaf_wetness_prob = if_else(obsValue_RHMean <= min(EvansBins$RH_min),
+                                0, leaf_wetness_prob),
+    #add the duration wet for each observation (days)
+    wetDuration_RH = obsDurationDay_RHMean * leaf_wetness_prob) |>
+  arrange(microsite, precip, timeStamp) |>
+  mutate(cumWetDuration_RH =
+           if_else(is.na(wetDuration_RH),
+                   NA,
+                   cumsum(if_else(is.na(wetDuration_RH), 0, wetDuration_RH))),
+         .by = c(microsite, precip))
+
+
+# check that we have similar number of missing values for wetDuration_RH across microsite and precip treatments
+proxies.df |> summarise(n_missing = sum(is.na(wetDuration_RH)), .by = c(microsite, precip))
+
+```
+
+### Figure S9: Compare condensation likelihood across sites {.unnumbered}
+
+```{r}
+#| label: compareRH_site
+
+ggplot(proxies.df) +
+  geom_line(aes(x = elapsed_days,
+                y = cumWetDuration_RH,
+                color = microsite, linetype = precip)) +
+  labs(title = 'Treatment comparison of relative humidity proxy',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)',
+       color = 'Microsite', linetype = 'Precipitation') +
+  theme_bw()
+```
+
+Here we can see ...
+
+Open has lower wet duration from RH than tree, which makes sense.
+There's an unexpected decrease in wet duration for the open site with the precipitation treatment.
+NEED TO EXPLORE THIS FURTHER.
+
+## Equilibrium moisture
+
+Relative moisture content of litter can be estimated from relative humidity, temperature, and equilibrium assumptions of fundamental Gibbs free energy dynamics (@Nelson1984).
+These curves have species specific parameters and exhibit hysteresis where the wet up dynamics are different then the wet down.
+
+$$G_m = \frac{1}{B} \log\left(\frac{-RT}{me^A}\log(H)\right)$$
+
+where
+
+-   $G_m$ is the gravimeter moisture content of the litter \[mass-water mass-litter\] at equilibrium,
+-   $R$ is the universal gas constant, 1.987 \[cal mol-1 K-1\],
+-   $T$ is the absolute environmental temperature \[K\],
+-   $m$ is the molar mass of water, 18 \[g mol-1\],
+-   $H$ is the fractional relative humidity \[% / 100\],
+-   $B$ and $A$ are calibrated species specific constants.
+
+This function was calibrated for conditions between 10-90% relative humidity.
+We assume that conditions below 10% did not support decomposition and anything above 90% always supported decomposition.
+Decay modifiers between the 10-90% were normalized to the relative moisture content range.
+
+### Table S2: Gibbs equlibrium constants {.unnumbered}
+
+```{r}
+#| label: setGibbsConst
+
+#Caption Table 1: Isotherm parameters computed from data for sorption of water vapor by several forest fuels at constant temperature according to (@Nelson Eqn 1: $ln \Delta G = A + B m = ln \Delta G_0 + B m$).
+Nelson1984_Table1 <- read_csv(file =
+"Fuel,'Sorption type','Temperature (C),'$A$','B','r^2','Maximum residual in $m$ (absolute values are given here)'
+'Slash pine','Adsorption',26.7,4.745,-15.495,0.971,0.0160
+'Slash pine','Desorption',26.7,5.176,-14.379,0.991,0.0109
+'Southern red oak','Adsorption',26.7,4.644,-13.730,0.961,0.0204
+'Southern red oak','Desorption',26.7,4.898,-11.652,0.976,0.0206
+'Wiregrass','Adsorption',26.7,4.585,-16.690,0.974,0.0144
+'Wiregrass','Desorption',26.7,4.673,-13.893,0.982,0.0150
+'Hardwoods','Adsorption',26.7,5.481,-21.412,0.994,0.0060
+'Hardwoods','Desorption',26.7,5.357,-16.630,0.993,0.0072
+'Ponderosa pine','Adsorption',23.9,5.130,-20,697,0.999,0.0018
+'Ponderosa pine','Desorption',23.9,5.252,-18.353,0.999,0.0018",
+show_col_types = FALSE)
+
+# Gibbs A and B values for three species (Anderson, 1990)
+GibbsWetnessConstants_bySpecies <- tibble(
+  Species = c("Cheatgrass", "Ninebark", "Western redcedar"), 
+  Condition = c("Recent", "Recent", "Recent"),
+  Temp_K = c(295, 295, 295),
+  Sorption = c("Adsorption", "Adsorption", "Adsorption"),
+  A_intercept = c(4.9145, 4.7501, 4.9899),
+  B_slope = c(-18.15, -13.53, -17.61))
+
+## R is the gas constant (cal/mol K)
+gas_const <- 1.987
+## M is the molecular weight of water (g/mol)
+water_molarMass <- 18
+
+## Use the Cheatgrass constants
+GibbsConst_A <- filter(GibbsWetnessConstants_bySpecies, 
+                       Species == 'Cheatgrass')$A_intercept
+GibbsConst_B <- filter(GibbsWetnessConstants_bySpecies, 
+                       Species == 'Cheatgrass')$B_slope
+
+GibbsEqnM_threshold <- 0.1 #above 10% threshold is wet
+
+GibbsWetnessConstants_bySpecies |>
+  kable(caption = 'Calibrated parameters from Anderson, 1990.') |>
+  kable_paper()
+```
+
+```{r}
+#| label: calcGibbsMoisture
+#| warning: false
+
+proxies.df <- proxies.df |>
+  mutate(
+    # equilibrium moisture at observed RH and temperature (Nelson 1984, Cheatgrass constants)
+    Gibbs_equlim_moisture =
+      1 / GibbsConst_B * log(
+        -gas_const * (obsValue_tempRHMean + 273.15) /
+          (water_molarMass * exp(GibbsConst_A)) *
+          log(obsValue_RHMean / 100)),
+    # moisture at the 10% and 90% RH limits of the calibrated range, at the same temperature
+    Gibbs_min_moisture =
+      1 / GibbsConst_B * log(
+        -gas_const * (obsValue_tempRHMean + 273.15) /
+          (water_molarMass * exp(GibbsConst_A)) * log(10 / 100)),
+    Gibbs_max_moisture =
+      1 / GibbsConst_B * log(
+        -gas_const * (obsValue_tempRHMean + 273.15) /
+          (water_molarMass * exp(GibbsConst_A)) * log(90 / 100))) |>
+  mutate(Gibbs_modifier = case_when(
+    obsValue_RHMean < 10 ~ 0,
+    obsValue_RHMean > 90 ~ Gibbs_max_moisture +
+      (1 - Gibbs_max_moisture) * (obsValue_RHMean - 90) / 10,
+    is.finite(Gibbs_equlim_moisture) ~ Gibbs_equlim_moisture,
+    .default = NA)) |>
+  #add the duration wet for each observation (days)
+  mutate(wetDuration_GibbsMoisture = obsDurationDay_RHMean * Gibbs_modifier) |>
+  arrange(microsite, precip, timeStamp) |>
+  mutate(cumWetDuration_GibbsMoisture =
+           if_else(is.na(wetDuration_GibbsMoisture),
+                   NA,
+                   cumsum(if_else(is.na(wetDuration_GibbsMoisture),
+                                  0, wetDuration_GibbsMoisture))),
+         .by = c(microsite, precip))
+
+```
+
+### Figure S11: Gibbs equilibrium moisture {.unnumbered}
+
+```{r}
+#| label: plotGibbsFunction
+
+ggplot(proxies.df |>
+         filter(is.finite(Gibbs_equlim_moisture), is.finite(obsValue_tempRHMean)) |>
+         mutate(TemperatureBin = cut_number(obsValue_tempRHMean, n = 5)) |>
+         arrange(obsValue_RHMean)) +      # sort by RH so each bin draws as a curve, not a time-ordered scribble
+  geom_line(aes(x = obsValue_RHMean, y = Gibbs_equlim_moisture,
+                color = TemperatureBin, group = TemperatureBin)) +
+  geom_rect(data = data.frame(xmin = c(0, 90), xmax = c(10, 100)),
+            mapping = aes(xmin = xmin, xmax = xmax),
+            ymin = 0, ymax = 1, alpha = 0.3) +
+  labs(x = "Relative Humidity [percent]",
+       y = 'Gravimetric moisture [mass-water / mass-litter]',
+       color = 'Temperature \nRange [C]',
+       title = 'Gibbs equilibrium moisture')
+```
+
+### Figure S12: Gibbs equilibrium intensity {.unnumbered}
+
+```{r}
+#| label: plotGibbsModifier
+
+ggplot(proxies.df |>
+         filter(is.finite(Gibbs_equlim_moisture), is.finite(obsValue_tempRHMean)) |>
+         mutate(TemperatureBin = cut_number(obsValue_tempRHMean, n = 5)) |>
+         arrange(obsValue_RHMean)) +
+  geom_line(aes(x = obsValue_RHMean, y = Gibbs_modifier,
+                color = TemperatureBin, group = TemperatureBin)) +
+  geom_rect(data = data.frame(xmin = c(0, 90), xmax = c(10, 100)),
+            mapping = aes(xmin = xmin, xmax = xmax),
+            ymin = 0, ymax = 1, alpha = 0.3) +
+  labs(x = "Relative Humidity [percent]",
+       y = 'Decompition modifier [unitless]',
+       color = 'Temperature \nRange [C]',
+       title = 'Gibbs modifier')
+```
+
+### Figure S13: Compare equilibrium model across resolutions {.unnumbered}
+
+```{r}
+#| label: plotCumGibbsDuration
+ggplot(proxies.df) +
+  geom_line(aes(x = elapsed_days,
+                y = cumWetDuration_GibbsMoisture,
+                color = microsite, linetype = precip)) +
+  labs(title = 'Gibbs moisture proxy wet duration',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)',
+       color = 'Microsite', linetype = 'Precipitation') +
+  theme_bw()
+```
+
+### Figure S14: Compare equilibrium model across treatment {.unnumbered}
+
+```{r}
+#| label: plotCumGibb_byTreatment
+
+proxies.df |>
+  select(microsite, precip, elapsed_days,
+         `Condensation likelihood` = cumWetDuration_RH,
+         `Equilibrium moisture`    = cumWetDuration_GibbsMoisture) |>
+  pivot_longer(c(`Condensation likelihood`, `Equilibrium moisture`),
+               names_to = 'Proxy', values_to = 'cumWetDuration') |>
+  ggplot() +
+  geom_line(aes(x = elapsed_days, y = cumWetDuration, color = Proxy)) +
+  facet_grid(microsite ~ precip) +
+  labs(title = 'Gibbs moisture proxy wet duration',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)') +
+  theme_bw()
+```
+
+Gibbs moisture content is an equilibrium approximation that uses multi-day protocols when estimating parameters.
+Coming to equilibrium is unlikely to be instantaneous however the relative humidity transition is relatively smooth meaning that the transition is probably faster then lab protocols coming up from an oven-dry standard.
+A daily time step is probably most appropriate for this metric, however this is the most insensitive metric to time steps.
+
+## Bucket model
+
+Below we propose a bucket model with an allocated fill and top-down draw down.
+Currently influx is assigned to precipitation and outflux assigned to PET from the Penman equation (@Linacre1977).
+There is no lateral transport in this model
+
+Determining the bucket size for the litter pool requires converting litter depth (roughly 3 mm) to equivalent maximum water holding capacity.
+To do this we assume that the bulk density of leaves is roughly 0.5 g $cm^{-3}$ and the relative water holding capacity 200%, giving us a 1-to-1 conversion ratio shown below.
+bulk density could be 0.1 to 0.02 g $cm^{-3}$
+
+$$0.3 \textrm{ [cm] } \times 0.5 \frac{\textrm{ [leaf-g] }}{\textrm{[cm}^3]} \times \frac{2 \textrm{ [water-g]}}{1 \textrm{[leaf-g]}} \times 1 \frac{\textrm{[cm}^3]}{\textrm{ [water-g] }}$$
+
+Further consider three soil buckets: surface soil is 20 mm deep with a 10% fill capacity, top soil with a 100 mm depth and 10% fill capacity, and sub-soil 'reserve' with effectively infinite capacity (10 000 mm).
+We also assume that 50% by surface litter and 50% by bare ground.
+
+We have code commented out that supports latent heat flux as a net flux (generally out flux).
+Latent heat flux is provided in \[W m$^{-2}$\], we use the enthalpy of water (2256.5 \[J g$^{-1}$\]) to convert this into mass per hour and further into equivalent liquid volume.
+
+```{r}
+#| label: setUpBucketModel
+
+#Latent heat conversion factor. Recall W m-2 = J s-1 m-2
+convert_fluxH2O <- 1 / 2256.5 * #g water per J (Enthalpy of water vapor)
+  1 / 1e6 * #g of water to m3
+  1000 * #m to mm
+  60*60 # seconds per hour
+
+#Define the hydrology buckets in mm
+hydroBuckets <- c(#standing = .5, #1 order mag less standing; ignore for study
+                  litter = 3 * 0.1 * 2, #3 mm litter depth 
+                  surface = 10, #10 mm surface soil
+                  top = 100, #100 mm top soil
+                  reserve = 1e4) #reserve is allowed to go negative and Inf
+
+incomingAlloction <- c(
+  #standing = 0.1, #standing dead interception; ignore for study
+  litter = 0.5, #litter coverage
+  surface = 0.5, #surface soil aka bare ground
+  top = 0, #canopy interception stem flow diverted to top soil
+  reserve = 0)
+
+if(abs(sum(incomingAlloction) - 1) > 1e-6){
+  stop('incoming allocation must sum to 1')
+}
+
+#Define the model that fills/empties from first to last
+MultiBucket.model <- function(flux, bucketSize_mm = hydroBuckets){
+  bucket_count <- length(bucketSize_mm)
+  time_count <- nrow(flux)
+  
+  net_water <- rep(0, times = bucket_count)
+  water_record <- matrix(data = NA_real_,
+                         nrow = time_count, ncol = bucket_count)
+  
+  for(ii in 1:nrow(water_record)){ # iterate across time
+    input_ii <- sum(flux[ii,flux[ii,]>0]) #sum all incoming fluxes for allocation
+    transfer_jj <- sum(flux[ii,flux[ii,]<0]) #sum all outcoming fluxes, remove top down
+    for(jj in 1:length(net_water)){ #push/pull flux in order across buckets
+      #add the new flux to the bucket
+      net_water[jj] <- net_water[jj] + #to the orginal bucket
+        transfer_jj + #add any internal transfers and outcoming fluxes
+        input_ii * incomingAlloction[jj] #and add in the inputs
+      
+      #if it pushes the bucket above the max
+      if(net_water[jj] > bucketSize_mm[jj]){
+        #create a new flux to deal with the over flow
+        transfer_jj <- net_water[jj] - bucketSize_mm[jj]
+        #set that bucket to it's max
+        net_water[jj] <- bucketSize_mm[jj]
+        #if it pulls the bucket below zero
+      }else if(net_water[jj] < 0 ){
+        #set the flux to the deficit to propigate
+        transfer_jj <- net_water[jj] 
+        #and set the bucket to zero
+        net_water[jj] <- 0
+      }else{
+        #bucket could accommodate the change and set flux to zero
+        transfer_jj <- 0
+      }
+    }
+    #treat the last bucket as a closed bottom
+    net_water[jj] <- net_water[jj] + transfer_jj #add it all to the last bucket
+    #write the record
+    water_record[ii,] <- net_water
+  }
+  
+  #set the names
+  water_record <- as.data.frame(water_record)
+  names(water_record) <- names(bucketSize_mm)
+  
+  fillFrac <- water_record
+  return(water_record)
+}
+```
+
+### Table S3: Bucket model parameters {.unnumbered}
+
+```{r}
+#| label: printBucketParam
+
+kable(hydroBuckets)
+```
+
+```{r}
+#| label: calcPET
+
+# Site constants for the Linacre equation, based on site of the decomp experiement
+latitude_deg <- -19.354195   # abs() is applied below, so the southern-hemisphere sign is fine
+elevation_m  <- 1153
+
+# hourly met station temperature and dew point (Ongava airstrip station, same hourly grid as the Kestrels)
+met_pet_hr <- met_L1 |>
+  mutate(timeStamp = floor_date(datetime, "hour")) |>
+  summarise(metTempC      = mean(TempC, na.rm = TRUE),
+            metDewPointC  = mean(DewPointC, na.rm = TRUE),
+            .by = timeStamp) |>
+  mutate(across(c(metTempC, metDewPointC), ~ if_else(is.nan(.x), NA_real_, .x)))
+
+proxies.df <- proxies.df |>
+  left_join(met_pet_hr, by = "timeStamp") |>
+  mutate(evapo_mm_penmen =
+           pmax(0,
+                ((700 * (metTempC + 0.006 * elevation_m) / (100 - abs(latitude_deg)) +
+                    15 * (metTempC - metDewPointC)) /
+                   (80 - metTempC)) *
+                  obsDurationDay_tempRHMean))   # scale from per day to per hour
+
+# check PET values to see if they are reasonable
+proxies.df |>
+  filter(microsite == first(microsite), precip == first(precip)) |>
+  mutate(date = as.Date(timeStamp)) |>
+  summarise(PET_mm_day = sum(evapo_mm_penmen),
+            n_hours    = sum(!is.na(evapo_mm_penmen)),
+            .by = date) |>
+  summary()
+
+```
+
+```{r}
+#| label: buildBucketProxies
+
+proxies.df <- proxies.df |>
+  select(-starts_with('bucketBalance')) |>      # makes the chunk safe to re-run
+  #set the two bucket fluxes, assume 0 if missing, add back in the NA later
+  # (latent heat flux is not available here, so only PET and precipitation are used,
+  #  which matches the active configuration in the original)
+  mutate(bucketPrecipFlux = if_else(is.na(obsValue_precipBulk), 0, obsValue_precipBulk),
+         bucketPET        = -1 * if_else(is.na(evapo_mm_penmen), 0, evapo_mm_penmen)) |>
+  #ensure things are well ordered because we iterate down in the bucket model
+  arrange(microsite, precip, timeStamp) |>
+  #run the bucket model separately for each microsite x precip treatment
+  mutate(bucketBalance =
+           MultiBucket.model(
+             flux = data.frame(flux1 = bucketPET,
+                               flux2 = bucketPrecipFlux),
+             bucketSize_mm = hydroBuckets),
+         .by = c(microsite, precip)) |>
+  #unnest the data frames with an '_' separator, names from the name of the hydro buckets
+  unnest(bucketBalance, names_sep = '_') |>
+  #reintroduce the NAs for missing data
+  mutate(across(starts_with('bucketBalance_'),
+                ~ if_else(is.na(evapo_mm_penmen) | is.na(obsValue_precipBulk),
+                          NA_real_, .x))) |>
+  mutate(bucketFillFrac_litter  = bucketBalance_litter  / hydroBuckets['litter'],
+         bucketFillFrac_surface = bucketBalance_surface / hydroBuckets['surface']) |>
+  mutate(wetDuration_bucket = bucketFillFrac_litter * obsDurationDay_precipBulk) |>
+  mutate(cumWetDuration_bucket =
+           if_else(is.na(wetDuration_bucket),
+                   NA,
+                   cumsum(if_else(is.na(wetDuration_bucket), 0, wetDuration_bucket))),
+         .by = c(microsite, precip))
+
+```
+
+### Figure S21: Bucket status over time {.unnumbered}
+
+```{r}
+#| label: plotBuckets
+
+#| fig-width: 8
+#| fig-height: 7
+
+plot.df <- proxies.df |>
+  select(microsite, precip, elapsed_days, starts_with('bucketBalance')) |>
+  pivot_longer(starts_with('bucketBalance'),
+               names_to = 'bucket', values_to = 'water_mm') |>
+  mutate(bucket = factor(bucket,
+                         levels = paste('bucketBalance', names(hydroBuckets), sep = '_'),
+                         labels = names(hydroBuckets)))
+
+ggplot(plot.df) +
+  geom_line(aes(x = elapsed_days, y = water_mm, color = precip), linewidth = 0.3) +
+  facet_grid(bucket ~ microsite, scales = 'free_y') +
+  labs(x = 'Elapsed time (days)', y = 'Water in bucket (mm)', color = 'Precipitation') +
+  theme_bw()
+  
+```
+
+### Figure S22: Comparison of bucket model by treatment {.unnumbered}
+
+```{r}
+#| label: plotBucketProxyTreatment
+
+ggplot(proxies.df) +
+  geom_line(aes(x = elapsed_days, y = cumWetDuration_bucket,
+                color = microsite, linetype = precip)) +
+  labs(title = 'Bucket-model proxy',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)',
+       color = 'Microsite', linetype = 'Precipitation') +
+  theme_bw()
+
+# check if open and tree microsites have the same wet duration for each precip treatment
+proxies.df |>
+  select(microsite, precip, timeStamp, cumWetDuration_bucket) |>
+  pivot_wider(names_from = microsite, values_from = cumWetDuration_bucket) |>
+  summarise(identical = all(open == tree, na.rm = TRUE),
+            na_open = sum(is.na(open)), na_tree = sum(is.na(tree)),
+            .by = precip)
+
+```
+
+### Figure S23: Comparison of bucket model by site {.unnumbered}
+
+```{r}
+#| label: plotBucketProxySite
+
+ggplot(proxies.df |> filter(microsite == first(microsite))) +
+  geom_line(aes(x = elapsed_days, y = cumWetDuration_bucket, color = precip)) +
+  labs(title = 'Bucket-model proxy',
+       subtitle = 'Same for open and tree microsites (met-station rain and PET only)',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)',
+       color = 'Precipitation') +
+  theme_bw()
+```
+
+There are a lot of assumptions that go into the bucket size and allocation for this model.
+Parameters are likely going to be site specific and biome specific at a minimum.
+Broadly however higher resolutions behave very differently in the temperate vs dryer sites, with higher resolutions in temperate sites predicting lower cumulative wet duration days and an inverse pattern for the dry sites.
+If using the Penman ET estimation, daily resolution is as high as likely makese sense here.
+
+WE ARE USING MET STATION DATA FROM AIRSTRIP TO DRIVE PENMAN-MONTEITH RATHER THAN KESTREL DATA.
+this is why bucket model is the same for open and tree microsites.
+The Kestrel data is measured at a different height than the assumptions of P-M.
+
+## Max model
+
+This model leverages prior models for condensation (Leaf wetness probablity), relative humidity equilibrium (Gibbs), and precipitation ET balance (bucket model) to estimate wet hours based on maximum between the three.
+
+```{r}
+#| label: calcMaxModel
+
+proxies.df <- proxies.df |>
+  # drop columns from earlier runs so this chunk is safe to re-run
+  select(-any_of(c('.ok', 'wetDuration_max', 'max_componetWinner',
+                   'max_obsDurationDay', 'cumWetDuration_max'))) |>
+  mutate(
+    .ok = is.finite(wetDuration_bucket + wetDuration_RH + wetDuration_GibbsMoisture),
+    # largest of the three components; 0 if any component is missing (as in the original)
+    wetDuration_max = if_else(.ok,
+                              pmax(wetDuration_bucket, wetDuration_RH, wetDuration_GibbsMoisture),
+                              0),
+    # which component wins; ties go to bucket, then Evans, then Gibbs (same as which.max)
+    max_componetWinner = case_when(
+      !.ok ~ NA_character_,
+      wetDuration_bucket >= wetDuration_RH &
+        wetDuration_bucket >= wetDuration_GibbsMoisture ~ 'bucket',
+      wetDuration_RH >= wetDuration_GibbsMoisture ~ 'Evans',
+      .default = 'Gibbs'),
+    max_obsDurationDay = if_else(max_componetWinner %in% 'bucket',
+                                 obsDurationDay_precipBulk,
+                                 obsDurationDay_RHMean)) |>
+  select(-.ok) |>
+  arrange(microsite, precip, timeStamp) |>
+  mutate(cumWetDuration_max =
+           if_else(is.na(wetDuration_max),
+                   NA,
+                   cumsum(if_else(is.na(wetDuration_max), 0, wetDuration_max))),
+         .by = c(microsite, precip))
+```
+
+### Figure S24: Compare Tri-max by resolution {.unnumbered}
+
+```{r}
+#| label: plotMaxProxyRes
+
+ggplot(proxies.df) +
+  geom_line(aes(x = elapsed_days, y = cumWetDuration_max,
+                color = microsite, linetype = precip)) +
+  labs(title = 'Max-model proxy',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)',
+       color = 'Microsite', linetype = 'Precipitation') +
+  theme_bw()
+```
+
+### Figure S25: Compare Tri-max within each treatment {.unnumbered}
+
+```{r}
+#| label: plotMaxProxyComponents
+
+proxies.df |>
+  select(microsite, precip, elapsed_days,
+         `Condensation likelihood` = cumWetDuration_RH,
+         `Equilibrium moisture`    = cumWetDuration_GibbsMoisture,
+         `Bucket model`            = cumWetDuration_bucket,
+         `Tri-max`                 = cumWetDuration_max) |>
+  pivot_longer(-c(microsite, precip, elapsed_days),
+               names_to = 'Proxy', values_to = 'cumWetDuration') |>
+  ggplot() +
+  geom_line(aes(x = elapsed_days, y = cumWetDuration, color = Proxy)) +
+  facet_grid(microsite ~ precip) +
+  labs(title = 'Comparison of wetness proxies',
+       x = 'Elapsed time (days)',
+       y = 'Cumulative duration litter is wet (days)') +
+  theme_bw()
+```
+
+### Contributions of Tri-max components
+
+```{r}
+#| label: plotMaxModel
+
+plot.df <- proxies.df |>
+  summarise(count = n(),
+            wetDuration = sum(wetDuration_max),
+            .by = c(microsite, precip, max_componetWinner)) |>
+  mutate(fraction_contribution =
+           wetDuration / sum(wetDuration[!is.na(max_componetWinner)]),
+         .by = c(microsite, precip)) |>
+  mutate(obs_durationDays = count / 24)     # hourly observations only
+
+winner_cols <- c(bucket = 'salmon', Evans = 'forestgreen', Gibbs = 'purple3')
+
+```
+
+#### Figure S26: Tri-max component duration contribution {.unnumbered}
+
+```{r}
+ggplot(plot.df) +
+  geom_col(aes(x = microsite, y = wetDuration, fill = max_componetWinner)) +
+  facet_wrap(~ precip) +
+  scale_fill_manual(values = winner_cols, na.value = 'grey', name = 'Winning component') +
+  labs(x = NULL, y = 'Wet duration (days)')
+```
+
+#### Figure S27: Tri-max component sensitivity contribution {.unnumbered}
+
+```{r}
+ggplot(plot.df) +
+  geom_col(aes(x = microsite, y = fraction_contribution, fill = max_componetWinner)) +
+  facet_wrap(~ precip) +
+  scale_fill_manual(values = winner_cols, na.value = 'grey', name = 'Winning component') +
+  labs(x = NULL, y = 'Fraction of wet duration')
+
+```
+
+```{r}
+#| label: writeProxies
+#| 
+write_csv(proxies.df, file = proxyfilename)
+
+rm(list=setdiff(ls(), keepVars))
+```
+
+# Session Information
+
+Packages go out of date and the code above may not run without a rewrite.
+Below is the session information at the time this code was last run.
+
+```{r}
+#| label: sessionInfo
+
+sessionInfo()
+```
+
+# References

@@ -7,7 +7,119 @@ editor_options:
   chunk_output_type: console
 ---
 
-Data compilation of met station data from Ongava airstrip for the decomposition experiment (2024-2026)
+**Experimental design variables**
+
+microsite: The microsite where the Kestrel loggers were placed. Allowable values = open, tree.
+
+precip: The precipitation treatment applied to the plot. Allowable values = Ctrl, Addition.
+
+datetime: The date and time of the record, in local time (Africa/Windhoek, UTC+2). Met station records are every 15 minutes, and Kestrel and gap-filled records are hourly (the start of each hour). Allowable values = 2024-06-15 00:00 to 2025-10-15 23:45 in the L1 met data, and 2024-06-15 00:00 to 2025-10-15 23:00 in the hourly data. Units = date-time (POSIXct).
+
+source_file: The name of the raw met station file each row came from. Allowable values = file names in MetStationData/L0.
+
+week: The week (starting Sunday) that each hourly record falls in, used to hold out whole weeks in cross-validation. Allowable values = weekly dates from 2024-06-09 to 2025-10-12. Units = date-time.
+
+daytime: Whether the hour is treated as daytime, defined as 07:00-18:59 local time. This is a fixed cutoff, not tied to sunrise or sunset. Allowable values = TRUE, FALSE.
+
+Measured variables: Ongava airstrip met station (15-minute records, L0 and L1)
+
+Barometer_hPa: Barometric pressure. Allowable values = real numbers. Units = hPa.
+
+HighBar_hPa, LowBar_hPa: Highest and lowest barometric pressure in the 15-minute interval. Allowable values = real numbers. Units = hPa.
+
+AbsolutePressure_hPa: Absolute (station) air pressure. Allowable values = real numbers. Units = hPa.
+
+TempC: Air temperature. Allowable values = real numbers. Units = °C.
+
+HighTempC, LowTempC: Highest and lowest air temperature in the interval. Allowable values = real numbers. Units = °C.
+
+RH: Relative humidity. Allowable values = 0-100. Units = %.
+
+HighRH, LowRH: Highest and lowest relative humidity in the interval. Allowable values = 0-100. Units = %.
+
+DewPointC: Dew point temperature. Allowable values = real numbers. Units = °C.
+
+HighDewPointC, LowDewPointC: Highest and lowest dew point in the interval. Allowable values = real numbers. Units = °C.
+
+WetBulbC: Wet bulb temperature. Allowable values = real numbers. Units = °C.
+
+HighWetBulbC, LowWetBulbC: Highest and lowest wet bulb temperature in the interval. Allowable values = real numbers. Units = °C.
+
+AvgWindSpeed_kmh: Average wind speed in the interval. Allowable values = 0 or greater. Units = km h-1.
+
+PrevailWindDirection: The prevailing wind direction in the interval. Allowable values = compass directions as recorded by the station (for example N, NNE, NE).
+
+HighWindSpeed_kmh: Highest (gust) wind speed in the interval. Allowable values = 0 or greater. Units = km h-1.
+
+HighWindDirection: Wind direction at the time of the highest wind speed. Allowable values = compass directions as recorded by the station.
+
+WindChillC, LowWindChillC: Wind chill temperature and its lowest value in the interval. Allowable values = real numbers. Units = °C.
+
+HeatIndexC, HighHeatIndexC: Heat index and its highest value in the interval. Allowable values = real numbers. Units = °C.
+
+THWIndexC, HighTHWIndexC, LowTHWIndexC: Temperature-humidity-wind index and its highest and lowest values in the interval. Allowable values = real numbers. Units = °C.
+
+WindRun_km: Distance the wind travelled in the interval. Allowable values = 0 or greater. Units = km.
+
+Rain_mm: Rainfall in the 15-minute interval. Allowable values = 0 or greater. Units = mm.
+
+HighRainRate_mm_h: Highest rainfall rate in the interval. Allowable values = 0 or greater. Units = mm h-1.
+
+HeatingDegreeDays, CoolingDegreeDays: Heating and cooling degree days accumulated in the interval. Allowable values = 0 or greater. Units = degree days.
+
+**Measured variables: other input files**
+
+Microsite, WaterTrt, hour, mean_T, mean_RH (file Ongava_kestrel_L2_hourlymeans.csv): Kestrel logger data, hourly means across the loggers in each microsite × treatment. These are renamed in the script to microsite, precip, datetime, TempC and RH. mean_T is air temperature at ground level (°C, real numbers) and mean_RH is relative humidity (%, 0-100). The hour column is read as local time.
+
+Date, PPT_addition_L_actual (file OngavaWatering_actual.csv): The date (M/D/YY) and volume of supplemental water applied to each Addition plot. Allowable values = 0 or greater. Units = L per plot.
+
+Date, CampusPPT, OfficePPT (file OngavaRain2024_2025.csv): The date and daily rainfall from the two rain gauges at the ORC campus and the office. Allowable values = 0 or greater, NA when the gauge wasn’t read. Units = mm.
+
+**Calculated variables**
+
+met_TempC: Mean of the 15-minute temperature values within each hour. NA if no data. Allowable values = real numbers. Units = °C.
+
+met_RH: Mean of the 15-minute RH values within each hour. NA if no data. Allowable values = 0-100. Units = %.
+
+met_Rain_mm: Sum of the 15-minute rainfall values within each hour. Hours present in the met data with every value missing give 0 because missing values are ignored. Hours with no record at all are NA after the join to the hourly grid. Allowable values = 0 or greater. Units = mm hr-1.
+
+TempC_obs, RH_obs: Observed Kestrel temperature and RH, used to keep the real measurements when filling gaps. Allowable values = as for TempC and RH. Units = °C and %.
+
+TempC_pred, RH_pred: Temperature and RH predicted for every hour from linear regression on the met station value, with separate fits for day and night, for each microsite × treatment. Allowable values = real numbers, NA when the met value is missing. Units = °C and %.
+
+TempC: The final gap-filled hourly ground-level temperature, observed where available and modeled otherwise. Allowable values = real numbers, NA when the met station had a gap and no Kestrel value exists. Units = °C.
+
+RH: The final gap-filled hourly relative humidity, observed where available and modeled otherwise, and clamped to 0-100. Allowable values = 0-100, NA as above. Units = %.
+
+TempC_source, RH_source: Whether the filled value is observed or modeled. Modeled is also used where the value is NA. Allowable values = observed, modeled.
+
+add_mm: Supplemental watering as depth, converted from L using the 1 m diameter plot area and applied at 08:00 local time on watering days. Allowable values = 0 or greater, 0 on non-watering hours. Units = mm.
+
+Rain_mm (in the gap-filled data): Hourly precipitation to the plot. For Ctrl this is met_Rain_mm. For Addition it is met_Rain_mm plus add_mm. Allowable values = 0 or greater, NA if met rainfall is missing. Units = mm hr-1.
+
+ORCMeasuredPPT_mm: Mean of the two ORC gauges (CampusPPT and OfficePPT) for the day. In this version of the script, the whole day’s rain is placed at 12:00 and the other hours get 0. NA on days with no gauge data. Allowable values = 0 or greater. Units = mm.
+
+rain_daily\$Rain_mm: Daily rainfall from the airstrip station, the sum of 15-minute values per date. Allowable values = 0 or greater. Units = mm day-1.
+
+calendar, noon (in met_daily): Daily airstrip rainfall totaled over the calendar day (midnight to midnight) or over the 24 hours ending at 12:00 on that date. Used to compare with the ORC gauges. Allowable values = 0 or greater. Units = mm day-1.
+
+r2_temp, r2_rh: In-sample R² of the regression of Kestrel temperature or RH on the met station value, for each microsite × treatment. Allowable values = 0-1. Units = unitless.
+
+cvrmse_temp, cvrmse_rh: Root mean squared error of predictions on weeks held out of model fitting (blocked cross-validation). Allowable values = 0 or greater. Units = °C for temperature and % for RH.
+
+obs, pred (in cv_all): Observed Kestrel value and cross-validated prediction for the same hour. Allowable values = real numbers. Units = °C or %, matching variable.
+
+variable: Label for which quantity a row of cv_all or cv_stats refers to. Allowable values = Temperature (°C), Relative humidity (%).
+
+n, bias, rmse, r2 (in cv_stats): Per treatment and variable, the number of hours compared (count), mean of predicted minus observed (same units as variable), root mean squared error (same units as variable), and squared correlation between predicted and observed (0-1).
+
+frac_modeled: The fraction of a day’s hours whose temperature was modeled rather than observed. Allowable values = 0-1. Units = fraction.
+
+**Constants**
+
+tz: The time zone for all date-times. Value = Africa/Windhoek.
+
+plot_area_m2: Area of one 1 m diameter plot, used to convert watering volume to depth. Value = 0.7854. Units = m2.
 
 # Overview
 
@@ -20,7 +132,6 @@ Raw files are stored in the "MetStationData\L0" folder for this project on Dropb
 
 ```{r}
 #| label: load-packages
-library(here) # v. 0.1
 library(stringr) # v. 1.2.0
 library(purrr) # v. 0.2.3
 library(tidyverse)
@@ -53,6 +164,7 @@ tz <- "Africa/Windhoek"
 #| label: combine-met-station-files
 
 met_dir <- file.path(DERT_Archives, "OngavaDungDecay", "MetStationData")
+rainfall_dir <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData")
 
 col_names <- c(
   "datetime",
@@ -248,6 +360,135 @@ kestrel_filled <- models |>
 
 # note: rows stay NA where the met station itself had a gap (no predictor available)
 kestrel_filled |> count(microsite, precip, TempC_source, is.na(TempC))
+```
+
+```{r}
+# ---- 1. Watering additions: L per 1 m2 plot -> mm, placed at 08:00 ----------
+water_path <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData",
+                        "OngavaWatering_actual.csv")
+
+plot_area_m2 <- pi * 0.5^2          # 1 m diameter circle = 0.7854 m2
+
+water_hr <- read_csv(water_path, show_col_types = FALSE) |>
+  transmute(date   = mdy(Date),
+            add_mm = PPT_addition_L_actual / plot_area_m2) |>   # L / m2 = mm
+  filter(!is.na(date)) |>
+  mutate(datetime = ymd_h(paste(date, 8), tz = tz)) |>
+  select(datetime, add_mm)
+
+# the join below assumes one row per date; this stops if that's not true
+stopifnot("Duplicate dates in watering file" = !anyDuplicated(water_hr$datetime))
+
+# ---- 2. Add precipitation to kestrel_filled ---------------------------------
+kestrel_filled <- kestrel_filled |>
+  left_join(grid |> select(datetime, met_Rain_mm), by = "datetime") |>
+  left_join(water_hr, by = "datetime") |>
+  mutate(
+    add_mm  = coalesce(add_mm, 0),
+    Rain_mm = case_when(
+      precip == "Ctrl"     ~ met_Rain_mm,
+      precip == "Addition" ~ met_Rain_mm + add_mm,
+      .default = NA_real_
+    )
+  ) |>
+  select(-met_Rain_mm, -add_mm)
+
+# ---- 3. Checks --------------------------------------------------------------
+kestrel_filled |> count(precip, wt = !is.na(Rain_mm), name = "n_with_rain")
+kestrel_filled |> group_by(precip) |> summarise(total_rain_mm = sum(Rain_mm, na.rm = TRUE))
+sum(water_hr$add_mm)    # compare with the Addition minus Ctrl difference in totals above
+```
+
+```{r}
+# compare with PPT values obatained from the Ongava airstrip with that from the two ORC rainguages
+
+# ---- 1. Read ORC rain gauges: mean of the two gauges per day -----------------
+orc_path <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData",
+                      "OngavaRain2024_2025.csv")
+
+orc_daily <- read_csv(orc_path, show_col_types = FALSE) |>
+  mutate(date = as.Date(parse_date_time(Date, orders = c("mdy", "ymd"), tz = tz)),
+         ORCMeasuredPPT_mm = rowMeans(cbind(CampusPPT, OfficePPT), na.rm = TRUE),
+         ORCMeasuredPPT_mm = if_else(is.nan(ORCMeasuredPPT_mm), NA_real_, ORCMeasuredPPT_mm)) |>
+  select(date, ORCMeasuredPPT_mm)
+
+stopifnot("Some Date values did not parse" = !anyNA(orc_daily$date),
+          "Duplicate dates in ORC file"    = !anyDuplicated(orc_daily$date))
+
+# ---- 2. Add to kestrel_filled: whole day's rain at 12:00, 0 in other hours ---
+kestrel_filled <- kestrel_filled |>
+  mutate(date = as.Date(datetime, tz = tz)) |>
+  left_join(orc_daily, by = "date") |>
+  mutate(ORCMeasuredPPT_mm = if_else(hour(datetime) == 12, ORCMeasuredPPT_mm,
+                                     if_else(is.na(ORCMeasuredPPT_mm), NA_real_, 0))) |>
+  select(-date)
+
+# ---- 3. Daily comparison: ORC gauges vs airstrip met station -----------------
+# Two ways to total the met station, since gauge read time is uncertain:
+#   calendar: midnight-midnight on that date
+#   noon:     the 24 h before the noon reading (previous noon to that noon)
+met_daily <- grid |>
+  mutate(cal_date  = as.Date(datetime, tz = tz),
+         noon_date = as.Date(datetime + hours(12), tz = tz)) |>
+  { \(d) full_join(
+      d |> group_by(date = cal_date)  |> summarise(calendar = sum(met_Rain_mm, na.rm = TRUE)),
+      d |> group_by(date = noon_date) |> summarise(noon     = sum(met_Rain_mm, na.rm = TRUE)),
+      by = "date") }()
+
+cmp <- orc_daily |>
+  inner_join(met_daily, by = "date") |>
+  filter(!is.na(ORCMeasuredPPT_mm)) |>
+  pivot_longer(c(calendar, noon), names_to = "met_window", values_to = "met_mm") |>
+  mutate(met_window = recode(met_window,
+                             calendar = "Met: calendar day",
+                             noon     = "Met: 24 h to noon"))
+
+# stats
+cmp |>
+  group_by(met_window) |>
+  summarise(n = n(), r2 = cor(ORCMeasuredPPT_mm, met_mm)^2,
+            bias_mm_day = mean(met_mm - ORCMeasuredPPT_mm),
+            total_orc = sum(ORCMeasuredPPT_mm), total_met = sum(met_mm))
+
+cols <- c(`ORC gauges` = "#D55E00", `Airstrip met station` = "#0072B2")
+
+# (a) time series of daily totals
+orc_daily |>
+  inner_join(met_daily, by = "date") |>
+  select(date, `ORC gauges` = ORCMeasuredPPT_mm, `Airstrip met station` = calendar) |>
+  pivot_longer(-date, names_to = "source", values_to = "mm") |>
+  ggplot(aes(date, mm, fill = source)) +
+  geom_col(position = position_dodge(width = 0.9), width = 0.9, na.rm = TRUE) +
+  scale_fill_manual(values = cols, name = NULL) +
+  labs(x = NULL, y = "Daily rainfall (mm)") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "top", panel.grid.minor = element_blank())
+
+# (b) scatter with 1:1 line, both met windows
+ggplot(cmp, aes(ORCMeasuredPPT_mm, met_mm)) +
+  geom_abline(slope = 1, intercept = 0, color = "grey40") +
+  geom_point(alpha = 0.6, color = "#0072B2") +
+  facet_wrap(~ met_window) +
+  coord_equal() +
+  labs(x = "ORC gauges, daily mean (mm)", y = "Airstrip met station (mm)") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank(), strip.text = element_text(face = "bold"))
+
+# (c) cumulative rainfall
+orc_daily |>
+  inner_join(met_daily, by = "date") |>
+  arrange(date) |>
+  mutate(`ORC gauges` = cumsum(coalesce(ORCMeasuredPPT_mm, 0)),
+         `Airstrip met station` = cumsum(coalesce(calendar, 0))) |>
+  pivot_longer(c(`ORC gauges`, `Airstrip met station`), names_to = "source", values_to = "cum_mm") |>
+  ggplot(aes(date, cum_mm, color = source)) +
+  geom_line(linewidth = 0.8) +
+  scale_color_manual(values = cols, name = NULL) +
+  labs(x = NULL, y = "Cumulative rainfall (mm)") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "top", panel.grid.minor = element_blank())
+
+# ORC gauges run consistently a bit higher than airstrip. This may well be real given orographic effects. However, the airstrip is hourly rather than daily data, so using that for now. 
 ```
 
 ```{r}

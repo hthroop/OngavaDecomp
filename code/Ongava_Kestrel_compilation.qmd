@@ -299,7 +299,6 @@ L2_dailystats_df <- L1_kestrel_data |>
   )
 ```
 
-
 ## Plots of hourly means
 
 ### RH
@@ -372,7 +371,6 @@ L2_daily_runs <- L2_dailystats_df |>
   mutate(grp = interaction(Microsite, WaterTrt, run))
 ```
 
-
 ### Temperature
 
 ```{r}
@@ -423,7 +421,6 @@ p5min <- L2_daily_runs |>
   scale_linetype_manual(values = c("Addition" = "solid", "Ctrl" = "solid"))
 p5min
 ```
-
 
 ### RH
 
@@ -476,6 +473,4 @@ p6min <- L2_daily_runs |>
 p6min
 ```
 
-
 # Microsite and Treatment Differences
-

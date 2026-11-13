@@ -4,7 +4,7 @@ author: "Heather Throop"
 format: html
 editor: visual
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 This code explores historical precipitation data for Ongava Research Center and uses this to come up with a watering schedule for the decomposition experiment establish by Heather Throop and Rolf Becker in June 2024.
@@ -34,8 +34,12 @@ library(lubridate)
 lat <- -19.35472
 lon <- 15.90289
 
-# define the dropbox folder path where output will be saved
-dropbox_path <- "/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/RainfallData/R_output"
+#| label: config-setup
+# This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
+DERT_Archives <- config::get()
+
+fig_dir <- file.path(DERT_Archives, "OngavaDungDecay", "R_output", "figures")
+
 ```
 
 # WorldClim Data
@@ -51,9 +55,7 @@ start_year <- 2010
 end_year <- 2019
 
 # Path to the directory where the downloaded .tif files are stored
-# data_dir <- here("wc2.1_cruts4.06_2.5m_prec_2010-2019")
-# Currently this maps to Heather's computer, local version of the Dropbox data file (I can't get an API working to Dropbox to do a data pull)
-data_dir <- file.path("/Users/hthroop/ASU Dropbox/Heather Throop/DERT (ThroopLab) ASU/Lab Data & Metadata Archives/OngavaDungDecay/wc2.1_cruts4.06_2.5m_prec_2010-2019")
+data_dir <- file.path(DERT_Archives, "OngavaDungDecay","wc2.1_cruts4.06_2.5m_prec_2010-2019")
 
 # Function to extract WorldClim2.1 data from local files
 get_WorldClim2_data <- function(lat, lon, start_year, end_year, data_dir) {
@@ -121,6 +123,7 @@ write.csv(precip_data_2010.2019,
 ### PPT Summaries
 
 #### Monthly PPT (as percentage of annual total)
+
 
 ```{r}
 # Calculate for each month the percentage of the total PPT for that year that fell in that month
@@ -337,6 +340,7 @@ monthly_precip_1960.2021 <- precip_data_1960.2021 |>
               N = n(),
               sd_monthly_PPT = sd(Precipitation),
               se_monthly_PPT = sd_monthly_PPT / sqrt(N))
+monthly_precip_1960.2021
  
 ```
 
@@ -449,7 +453,7 @@ rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021,
   geom_hline(yintercept = percentiles[4], color = "blue", 
              linetype = "dotted", size = 1) + # 90th percentile
   labs(x = "Rain Year", y = "Precipitation (mm)", 
-       title = "1960-2021 WorldClim2.1 w average and extreme rainfall") +
+       title = "1960-2021 WorldClim2.1 w mean and extreme rainfall") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "top") +
@@ -458,8 +462,8 @@ rainfall_extremes_1960.2021 <- ggplot(annual_rainfall_1960.2021,
       levels(annual_rainfall_1960.2021$rain_year)), by = 5)]) 
 rainfall_extremes_1960.2021
 
-ggsave(filename = here("figs", "1960.2021rainfall_extremes.jpg"),
-       plot = rainfall_extremes_1960.2021,
+
+ggsave(filename = file.path(fig_dir, "1960.2021rainfall_extremes.jpg"),
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 
@@ -573,8 +577,7 @@ rainfall_comparison <- ggplot(annual_rainfall_2010.2019, aes(x = rain_year)) +
         legend.position = "top")
 rainfall_comparison
 
-ggsave(filename = here("figs", "Ongava_vs_WorldCLim_annualPPT.jpg"),
-       plot = rainfall_comparison,
+ggsave(filename = file.path(fig_dir, "Ongava_vs_WorldCLim_annualPPT.jpg"),
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 ```
@@ -613,9 +616,8 @@ write.csv(monthly_PPT_additions, file = here(
 ```{r}
 # compare monthly PPT from WorldClim2.1 data with rainguage data collected at Ongava during the dung decay experiment
 
-# Load the Ongava rainfall dataset
-ongava_ppt_2024_2025 <- 
-  read_csv("https://www.dropbox.com/scl/fi/cb3g6no7ddaohm46lxcei/OngavaRain2024_2025.csv?rlkey=ulh5lpyazi0hxdhdv6szdh5nt&dl=1")
+# Load the Ongava rainfall dataset - ea
+ongava_ppt_2024_2025 <- read.csv(file.path(DERT_Archives, "OngavaDungDecay", "RainfallData", "OngavaRain2024_2025.csv")) 
 
 # Convert date column to Date format
 ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
@@ -623,10 +625,12 @@ ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
          Year = year(Date),
          Month = month(Date))
 
-# Aggregate daily rainfall to monthly totals
+# Aggregate daily rainfall to monthly totals - taking the mean of Office and Campus rain guages
 monthly_rainfall_2024_2025 <- ongava_ppt_2024_2025 |>
+  mutate(mean_PPT = rowMeans(cbind(CampusPPT, OfficePPT), na.rm = TRUE),
+         mean_PPT = if_else(is.nan(mean_PPT), NA_real_, mean_PPT)) |>   # both gauges missing -> NA
   group_by(Year, Month) |>
-  summarize(total_PPT = sum(CampusPPT, na.rm = TRUE), .groups = "drop")
+  summarize(total_PPT = sum(mean_PPT, na.rm = TRUE), .groups = "drop")
 
 ## Create a plot of historical means versus actual rainfall during experiment
 
@@ -708,24 +712,25 @@ monthly_rainfall_plot <- ggplot() +
   scale_color_manual(name = "",
                      values = c("Mean Modeled Historical PPT" = "black", 
                                 "Observed PPT" = "blue")) +
-  scale_x_date(date_breaks = "2 months", date_labels = "%b\n%Y") +
+  scale_x_date(limits = c(as.Date(NA), as.Date("2025-10-15")),
+             date_breaks = "2 months", date_labels = "%b\n%Y") +
   scale_y_continuous(limits = c(0, 200), expand = c(0, 0)) +
   labs(x = "Date", y = "Precipitation (mm)", 
        title = "Ongava WorldClim2.1 2009–2019 vs. Observed Rainfall") +
-  annotate("text", x = as.Date("2025-06-01"), 
-           y = 140,  # legend position
-           label = "data through 2025-04-03", color = "red", size = 4) +
-  theme_classic() +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top")
+        panel.grid = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(0.02, 0.98),     # x, y as fractions of the plot area
+        legend.justification = c("left", "top"),
+        legend.background = element_blank())
 
 print(monthly_rainfall_plot)
 
 # Save plot
-ggsave(filename = here("figs", "WorldClim_vs_actual_monthly_rainfall.jpg"),
-       plot = monthly_rainfall_plot,
+ggsave(filename = file.path(fig_dir, "WorldClim_vs_actual_monthly_rainfall.jpg"),
        device = "jpeg",
-       width = 10, height = 6, dpi = 300)
+       width = 8, height = 6, dpi = 300)
 
 ```
 
@@ -783,22 +788,28 @@ ongava_ppt_2024_2025 <- ongava_ppt_2024_2025 |>
 
 # Plot cumulative precipitation
 ggplot(ongava_ppt_2024_2025, aes(x = Date)) +
-  geom_line(aes(y = Cumulative_PPT_ctrl, color = "Ambient PPT"), size = 1) +
-  geom_line(aes(y = Cumulative_PPT_addition, color = "Ambient + Actual Additions"), size = 1) +
-  geom_line(aes(y = Cumulative_PPT_planned, color = "Ambient + Planned Additions"), size = 1) +
+  geom_line(aes(y = Cumulative_PPT_ctrl, color = "Ambient PPT"), linewidth = 1) +
+  geom_line(aes(y = Cumulative_PPT_addition, color = "Ambient + Actual Additions"), linewidth = 1) +
+  geom_line(aes(y = Cumulative_PPT_planned, color = "Ambient + Planned Additions"), linewidth = 1) +
+  scale_x_date(expand = c(0, 0)) +      
+  scale_x_date(expand = c(0, 0),
+             date_breaks = "2 months",
+             date_labels = "%b %Y") + # first date sits on the y-axis
+  scale_y_continuous(limits = c(0, NA),                                   # y starts at 0
+                     expand = expansion(mult = c(0, 0.05))) +             # no gap at 0, small gap at top
   labs(title = "Cumulative Rainfall and Additions",
        x = "Date",
        y = "Cumulative Precipitation (mm)",
-       color = "Legend") +
-  theme_classic() +
+       color = NULL) +                                                    # removes the legend title
+  theme_bw() +
   theme(
-    legend.position = c(0.5, 0.8),  # Adjust position as needed
-    panel.grid = element_blank()    # Remove gridlines
+    legend.position = "inside",
+    legend.position.inside = c(0.2, 0.8),
+    panel.grid = element_blank()
   )
 
 # save the plot
-ggsave(filename = 
-         here("figs", "cumulative_precipitation_plot.jpg"),
+ggsave(filename = file.path(fig_dir, "cumulative_precipitation_plot.jpg"),
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 
@@ -840,7 +851,7 @@ rainfall_extremes_1960.2021_vs_2024.2025 <- ggplot(annual_rainfall_1960.2021,
            label = "PPT ambient + addition (2024–2025)", color = "orange", hjust = 0) +
 
   labs(x = "Rain Year", y = "Precipitation (mm)", 
-       title = "1960–2021 WorldClim2.1 w/ average and extreme rainfall") +
+       title = "1960–2021 WorldClim2.1 w/ mean and extreme rainfall") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "top") +
@@ -850,8 +861,7 @@ rainfall_extremes_1960.2021_vs_2024.2025 <- ggplot(annual_rainfall_1960.2021,
 rainfall_extremes_1960.2021_vs_2024.2025
 
 # save the plot
-ggsave(filename = 
-         here("figs", "1960.2021rainfall_extremes_vs_2024-5experiment.jpg"),
+ggsave(filename = file.path(fig_dir, "1960.2021rainfall_extremes_vs_2024-5experiment.jpg"),
        device = "jpeg",
        width = 8, height = 6, dpi = 300)
 ```
