@@ -5,6 +5,8 @@ This folder includes code for analyses related to the Ongava Decomposition Exper
 
 "MassLoss.qmd" includes code to analyze mass loss data from the decomposition experiment.
 
+"MetStationData.qmd" works up data from the AirStrip met station and compares with Kestrel data. AirStrip data are used to create a gapfilled dataset for hourly surface T and RH (predicting Kestrel gaps from metstation data_. This code also includes some initial analysis of the met station data. Met summary figures are produced and a clean L2 file with hourly data is output (L2_MetKestrelData_hourly.csv).
+
 "Ongava_Kestrel_compilation.qmd" includes code to compile kestrel data from Ongava. Loggers recorded hourly data, with each logger outputting a separate file (one per monthly download). This code compiles all the data into a single file and complete some initial analysis.
 
 "OngavaPPR_WorldClim.qmd" includes code to extract WorldClim data for the Ongava sites. Historical rainfall data are explored and these data are used to come up with a planned watering regime for the decomposition experiment.

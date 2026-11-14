@@ -7,6 +7,17 @@ editor_options:
   chunk_output_type: console
 ---
 
+# Overview
+
+This script reads in csv files from the airstrip met station, merges the files, and synthesizes the data.
+
+Created Nov 7, 2026 Heather Throop\
+Updated
+
+Raw files are stored in the "MetStationData\L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder and writes figures and csv files to Dropbox as mapped with a config folder.
+
+## Variables
+
 **Experimental design variables**
 
 microsite: The microsite where the Kestrel loggers were placed. Allowable values = open, tree.
@@ -97,7 +108,7 @@ add_mm: Supplemental watering as depth, converted from L using the 1 m diameter 
 
 Rain_mm (in the gap-filled data): Hourly precipitation to the plot. For Ctrl this is met_Rain_mm. For Addition it is met_Rain_mm plus add_mm. Allowable values = 0 or greater, NA if met rainfall is missing. Units = mm hr-1.
 
-ORCMeasuredPPT_mm: Mean of the two ORC gauges (CampusPPT and OfficePPT) for the day. In this version of the script, the whole day’s rain is placed at 12:00 and the other hours get 0. NA on days with no gauge data. Allowable values = 0 or greater. Units = mm.
+ORCMeasuredPPT_mm: Mean of the two ORC gauges (CampusPPT and OfficePPT). Each daily value is moved to the next date (+1 day) to match the gauge read time, and covers the 24 h ending at 12:00 on that date. It is split into four equal parts at 12:00 and 18:00 the day before and 00:00 and 06:00 on that date, with 0 in other hours. NA where there is no gauge data and in the partial windows at the start and end of the record. Allowable values = 0 or greater. Units = mm.
 
 rain_daily\$Rain_mm: Daily rainfall from the airstrip station, the sum of 15-minute values per date. Allowable values = 0 or greater. Units = mm day-1.
 
@@ -121,14 +132,7 @@ tz: The time zone for all date-times. Value = Africa/Windhoek.
 
 plot_area_m2: Area of one 1 m diameter plot, used to convert watering volume to depth. Value = 0.7854. Units = m2.
 
-# Overview
 
-This script reads in csv files from the airstrip met station, merges the files, and synthesizes the data.
-
-Created Nov 7, 2026 Heather Throop\
-Updated
-
-Raw files are stored in the "MetStationData\L0" folder for this project on Dropbox. This code pulls data from the Dropbox folder and writes figures and csv files to Dropbox as mapped with a config folder.
 
 ```{r}
 #| label: load-packages
@@ -151,6 +155,7 @@ sessionInfo()
 
 # This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
 DERT_Archives <- config::get()
+fig_dir <- file.path(DERT_Archives, "OngavaDungDecay", "R_output", "figures")
 
 # set the time zone for the met station data
 tz <- "Africa/Windhoek"
@@ -158,7 +163,7 @@ tz <- "Africa/Windhoek"
 
 # L0: Read, Clean, Combine
 
-### Read in and Combine Files
+### Read in and MetStation Data
 
 ```{r}
 #| label: combine-met-station-files
@@ -237,9 +242,10 @@ write_csv(
 
 ```
 
-# L1: Data Exploration
+# L1: Met Station Data Exploration
 
 ```{r}
+#| label: MetStation-plots
 
 theme_set(theme_bw(base_size = 12))
 
@@ -290,7 +296,10 @@ grid <- tibble(datetime = seq(ymd_hms("2024-06-15 00:00:00", tz = tz),
   mutate(daytime = hour(datetime) %in% 7:18)
 ```
 
+# MetStation & Kestral Comparison
+
 ```{r}
+#| label: regression-models-for-gap-filling
 
 kestrel_path <- file.path(DERT_Archives, "OngavaDungDecay", "MicroclimateData",
                           "L2", "Ongava_kestrel_L2_hourlymeans.csv")
@@ -338,7 +347,11 @@ models <- kestrel |>
 models |> select(microsite, precip, r2_temp, cvrmse_temp, r2_rh, cvrmse_rh)
 ```
 
+## Gap Fill Kestrel Data
+
 ```{r}
+#| label: gap-fill-kestrel
+
 kestrel_filled <- models |>
   mutate(pred = pmap(list(m_temp, m_rh), \(mt, mr) {
     grid |>
@@ -362,8 +375,13 @@ kestrel_filled <- models |>
 kestrel_filled |> count(microsite, precip, TempC_source, is.na(TempC))
 ```
 
+## Rainfall Additions to Weather Records
+
 ```{r}
-# ---- 1. Watering additions: L per 1 m2 plot -> mm, placed at 08:00 ----------
+#| label: rainfall-addition-data-workup
+
+# Watering additions 
+# data are in L per 1 m2 plot -> mm, assume placed at 08:00 
 water_path <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData",
                         "OngavaWatering_actual.csv")
 
@@ -379,7 +397,7 @@ water_hr <- read_csv(water_path, show_col_types = FALSE) |>
 # the join below assumes one row per date; this stops if that's not true
 stopifnot("Duplicate dates in watering file" = !anyDuplicated(water_hr$datetime))
 
-# ---- 2. Add precipitation to kestrel_filled ---------------------------------
+# Join water additions to kestrel data
 kestrel_filled <- kestrel_filled |>
   left_join(grid |> select(datetime, met_Rain_mm), by = "datetime") |>
   left_join(water_hr, by = "datetime") |>
@@ -393,16 +411,17 @@ kestrel_filled <- kestrel_filled |>
   ) |>
   select(-met_Rain_mm, -add_mm)
 
-# ---- 3. Checks --------------------------------------------------------------
+# Check data
 kestrel_filled |> count(precip, wt = !is.na(Rain_mm), name = "n_with_rain")
-kestrel_filled |> group_by(precip) |> summarise(total_rain_mm = sum(Rain_mm, na.rm = TRUE))
+kestrel_filled |> group_by(precip,microsite) |> summarise(total_rain_mm = sum(Rain_mm, na.rm = TRUE))
 sum(water_hr$add_mm)    # compare with the Addition minus Ctrl difference in totals above
 ```
 
+## rainfall comparisons
 ```{r}
 # compare with PPT values obatained from the Ongava airstrip with that from the two ORC rainguages
 
-# ---- 1. Read ORC rain gauges: mean of the two gauges per day -----------------
+# Read ORC rain gauges: mean of the two gauges per day 
 orc_path <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData",
                       "OngavaRain2024_2025.csv")
 
@@ -415,15 +434,7 @@ orc_daily <- read_csv(orc_path, show_col_types = FALSE) |>
 stopifnot("Some Date values did not parse" = !anyNA(orc_daily$date),
           "Duplicate dates in ORC file"    = !anyDuplicated(orc_daily$date))
 
-# ---- 2. Add to kestrel_filled: whole day's rain at 12:00, 0 in other hours ---
-kestrel_filled <- kestrel_filled |>
-  mutate(date = as.Date(datetime, tz = tz)) |>
-  left_join(orc_daily, by = "date") |>
-  mutate(ORCMeasuredPPT_mm = if_else(hour(datetime) == 12, ORCMeasuredPPT_mm,
-                                     if_else(is.na(ORCMeasuredPPT_mm), NA_real_, 0))) |>
-  select(-date)
-
-# ---- 3. Daily comparison: ORC gauges vs airstrip met station -----------------
+# Daily comparison: ORC gauges vs airstrip met station 
 # Two ways to total the met station, since gauge read time is uncertain:
 #   calendar: midnight-midnight on that date
 #   noon:     the 24 h before the noon reading (previous noon to that noon)
@@ -451,6 +462,8 @@ cmp |>
             total_orc = sum(ORCMeasuredPPT_mm), total_met = sum(met_mm))
 
 cols <- c(`ORC gauges` = "#D55E00", `Airstrip met station` = "#0072B2")
+
+# there is consistently more rain in the ORC gauges than the airstrip
 
 # (a) time series of daily totals
 orc_daily |>
@@ -489,9 +502,64 @@ orc_daily |>
   theme(legend.position = "top", panel.grid.minor = element_blank())
 
 # ORC gauges run consistently a bit higher than airstrip. This may well be real given orographic effects. However, the airstrip is hourly rather than daily data, so using that for now. 
+
+#Figs b and c (above) suggest that ORC data and met data are not in sync temporally (ORC recording a day before). Test this by shifting the ORC data by 1-3 days and comparing with the met data.
+
+lag_test <- map_dfr(-1:3, \(k) {
+  orc_daily |>
+    mutate(date = date + k) |>                       # positive k = ORC value moved to a later date
+    inner_join(met_daily |> select(date, calendar), by = "date") |>
+    filter(!is.na(ORCMeasuredPPT_mm), !is.na(calendar)) |>
+    summarise(shift_days = k, n = n(),
+              r2 = cor(ORCMeasuredPPT_mm, calendar)^2,
+              total_orc = sum(ORCMeasuredPPT_mm), total_met = sum(calendar))
+})
+lag_test
+
+# data suggest that the ORC gauges are recording rain a day before the airstrip. Shift the ORC data by 1 day to align with the met station data.
+shift_days <- 1     # set this from lag_test
+
+orc_daily_shifted <- orc_daily |> mutate(date = date + shift_days)
+
+cmp <- orc_daily_shifted |>
+  inner_join(met_daily, by = "date") |>
+  filter(!is.na(ORCMeasuredPPT_mm)) |>
+  pivot_longer(c(calendar, noon), names_to = "met_window", values_to = "met_mm") |>
+  mutate(met_window = recode(met_window,
+                             calendar = "Met: calendar day",
+                             noon     = "Met: 24 h to noon"))
+
+# (a) time series of daily totals
+orc_daily_shifted |>
+  inner_join(met_daily, by = "date") |>
+  select(date, `ORC gauges` = ORCMeasuredPPT_mm, `Airstrip met station` = calendar) |>
+  pivot_longer(-date, names_to = "source", values_to = "mm") |>
+  ggplot(aes(date, mm, fill = source)) +
+  geom_col(position = position_dodge(width = 0.9), width = 0.9, na.rm = TRUE) +
+  scale_fill_manual(values = cols, name = NULL) +
+  labs(x = NULL, y = "Daily rainfall (mm)") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "top", panel.grid.minor = element_blank())
+
+# (b) scatter with 1:1 line, both met windows
+ggplot(cmp, aes(ORCMeasuredPPT_mm, met_mm)) +
+  geom_abline(slope = 1, intercept = 0, color = "grey40") +
+  geom_point(alpha = 0.6, color = "#0072B2") +
+  facet_wrap(~ met_window) +
+  coord_equal() +
+  labs(x = "ORC gauges, daily mean (mm)", y = "Airstrip met station (mm)") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank(), strip.text = element_text(face = "bold"))
+
+# We have best alignment with 24 h to noon, +1 day shift. This is consistent with the ORC gauges being read at 12:00, but the gauges are recording rain that fell the previous day 
+
 ```
 
+# Plot-gap-filled-Kestrel-Data
+
 ```{r}
+#| label: RH-and-T-by-microsite
+
 src_cols <- c(observed = "#0072B2", modeled = "#E69F00")
 
 plot_filled <- function(data, y, ylab) {
@@ -502,9 +570,16 @@ plot_filled <- function(data, y, ylab) {
     scale_x_datetime(date_labels = "%b %y", date_breaks = "3 months") +
     labs(x = NULL, y = ylab) +
     guides(color = guide_legend(override.aes = list(linewidth = 1.2))) +
-    theme_minimal(base_size = 12) +
+    theme_bw(base_size = 12) +
     theme(legend.position = "top",
-          panel.grid.minor = element_blank(),
+          panel.grid = element_blank(),
+          strip.text = element_text(face = "bold")) +
+    theme(legend.position = "inside",
+          legend.position.inside = c(0.01, 0.99),       # x, y as fractions of the panel area
+          legend.justification = c("left", "top"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.grid = element_blank(),
           strip.text = element_text(face = "bold"))
 }
 
@@ -514,9 +589,20 @@ p_rh   <- plot_filled(kestrel_filled, "RH",    "Relative humidity (%)")
 p_temp
 p_rh
 
+ggsave(filename = file.path(fig_dir, "gap-filled-hourly-T.jpg"),
+       plot = p_temp,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
+
+ggsave(filename = file.path(fig_dir, "gap-filled-hourly-RH.jpg"),
+       plot = p_rh,
+       device = "jpeg",
+       width = 8, height = 6, dpi = 300)
 ```
 
 ```{r}
+#| label: daily-mean-T-and-RH
+
 daily <- kestrel_filled |>
   mutate(date = as.Date(datetime, tz = tz)) |>
   group_by(microsite, precip, date) |>
@@ -528,11 +614,18 @@ daily <- kestrel_filled |>
          RH_source    = TempC_source,
          datetime     = as.POSIXct(date, tz = tz))
 
-plot_filled(daily, "TempC", "Daily mean temperature (°C)")
+p_temp_daily <- plot_filled(daily, "TempC", "Daily mean temperature (°C)")
+p_rh_daily   <- plot_filled(daily, "RH",    "Daily mean relative humidity (%)")
+
+p_temp_daily
+p_rh_daily
 ```
 
+## Observed vs. modeled Kestrel data
+
 ```{r}
-# ---- 1. Cross-validated predictions for hours with observed Kestrel data ----
+#| label: cross-validation
+
 cv_preds <- function(d, y, x) {
   d  <- drop_na(d, all_of(c(y, x)))
   wk <- unique(d$week)
@@ -551,7 +644,7 @@ cv_all <- kestrel |>
     cv_preds(d, "RH",    "met_RH")    |> mutate(variable = "Relative humidity (%)")
   ))
 
-# ---- 2. Fit statistics per treatment x variable ----------------------------
+# Fit statistics per treatment x variable 
 cv_stats <- cv_all |>
   group_by(variable, microsite, precip) |>
   summarise(n    = n(),
@@ -563,7 +656,7 @@ cv_stats <- cv_all |>
 
 print(cv_stats, n = Inf)
 
-# ---- 3. Predicted vs observed with 1:1 line ---------------------------------
+# Predicted vs observed with 1:1 line 
 plot_obs_pred <- function(var) {
   ggplot(filter(cv_all, variable == var), aes(obs, pred)) +
     geom_point(alpha = 0.08, size = 0.6, color = "#0072B2") +
@@ -581,7 +674,7 @@ plot_obs_pred <- function(var) {
 plot_obs_pred("Temperature (°C)")
 plot_obs_pred("Relative humidity (%)")
 
-# ---- 4. Time-series overlay: observed vs modeled over a short window --------
+# Time-series overlay: observed vs modeled over a short window 
 win <- c(ymd("2025-03-01", tz = tz), ymd("2025-03-15", tz = tz))   # adjust to a period with data
 
 cv_all |>
@@ -598,3 +691,45 @@ cv_all |>
         strip.text = element_text(face = "bold"))
 
 ```
+
+# Save L2 Hourly Met Data
+
+```{r}
+#| label: save-L2-hourly
+
+# ORC gauges are read at 12:00 and, after the +1 day shift, each value covers the 24 h ending
+# at noon on the shifted date (previous noon -> that noon). Rebuild the hourly ORC rain to match.
+# Four equal aliquots at 12:00 and 18:00 on the day before the window date and
+# 00:00 and 06:00 on the window date, so no rain is placed after the gauge was read.
+
+first_full_window <- as.Date(min(grid$datetime), tz = tz) + 1   # window must start at a noon inside the grid
+last_full_window  <- as.Date(max(grid$datetime), tz = tz)
+
+kestrel_L2 <- kestrel_filled |>
+  ungroup() |>
+  select(-any_of("ORCMeasuredPPT_mm")) |>                       # drop the earlier unshifted version
+  mutate(window_date = as.Date(datetime + hours(12), tz = tz)) |>   # same window definition as "noon" in met_daily
+  left_join(orc_daily_shifted, by = c("window_date" = "date")) |>
+  mutate(ORCMeasuredPPT_mm = case_when(
+    window_date < first_full_window | window_date > last_full_window ~ NA_real_,  # partial windows at the ends
+    is.na(ORCMeasuredPPT_mm)            ~ NA_real_,                               # no gauge data
+    hour(datetime) %in% c(12, 18, 0, 6) ~ ORCMeasuredPPT_mm / 4,
+    .default = 0)) |>
+  select(datetime, microsite, precip, TempC, TempC_source, RH, RH_source,
+         Rain_mm, ORCMeasuredPPT_mm) |>
+  arrange(microsite, precip, datetime)
+
+# check: hourly ORC rain should add back up to the shifted daily totals (same for each treatment)
+kestrel_L2 |>
+  summarise(hourly_total = sum(ORCMeasuredPPT_mm, na.rm = TRUE), .by = c(microsite, precip))
+orc_daily_shifted |>
+  filter(date >= first_full_window, date <= last_full_window) |>
+  summarise(daily_total = sum(ORCMeasuredPPT_mm, na.rm = TRUE))
+
+# write the L2 file (datetime written as local time, not UTC)
+write_csv(
+  kestrel_L2 |> mutate(datetime = format(datetime, "%Y-%m-%d %H:%M:%S", tz = tz)),
+  file.path(DERT_Archives, "OngavaDungDecay", "MetStationData", "L2_MetKestrelData_hourly.csv")
+)
+```
+

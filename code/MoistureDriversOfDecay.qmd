@@ -225,10 +225,28 @@ library(bibtex)
 
 # This script uses a config.yml file to define the path for the DERT Data & Metadata folder (in Dropbox) where Heather has the data stored. This can be changed to your own path as needed or you can read in data from elsewhere, but you will need to update the read-in-files steps. 
 DERT_Archives <- config::get()
-
-met_dir <- file.path(DERT_Archives, "OngavaDungDecay", "MetStationData")
-rainfall_dir <- file.path(DERT_Archives, "OngavaDungDecay", "RainfallData")
 ```
+
+```{r}
+#| label: read-combined-surface-hourly-met-data
+
+kestrel_L2 <- read_csv(
+  file.path(DERT_Archives, "OngavaDungDecay", "MetStationData", "L2_MetKestrelData_hourly.csv"),
+  col_types = cols(
+    datetime           = col_datetime(format = "%Y-%m-%d %H:%M:%S"),
+    microsite          = col_character(),
+    precip             = col_character(),
+    TempC              = col_double(),
+    TempC_source       = col_character(),
+    RH                 = col_double(),
+    RH_source          = col_character(),
+    Rain_mm            = col_double(),
+    ORCMeasuredPPT_mm  = col_double()
+  ),
+  locale = locale(tz = "Africa/Windhoek")      # the file holds local times, so parse them as such
+)
+```
+
 
 We consider four models for litter wetness in this analysis:
 
@@ -321,7 +339,7 @@ Build a proxies.df using the kestrel_filled df so that we can use original drive
 #| label: buildProxies
 
 # one row per hour per microsite x precip treatment (replaces the NEON site/resolution structure)
-proxies.df <- kestrel_filled |>
+proxies.df <- kestrel_L2 |>
   ungroup() |>
   arrange(microsite, precip, datetime) |>
   transmute(microsite, precip,
